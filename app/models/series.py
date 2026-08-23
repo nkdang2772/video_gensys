@@ -1,8 +1,9 @@
 from __future__ import annotations
 
+from datetime import datetime
 from typing import TYPE_CHECKING, Any
 
-from sqlalchemy import ForeignKey, JSON, String, Text
+from sqlalchemy import DateTime, ForeignKey, JSON, String, Text
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.db import Base
@@ -33,6 +34,7 @@ class Series(TimestampMixin, Base):
     )
     palette_json: Mapped[dict[str, Any] | None] = mapped_column(JSON)
     font_config_json: Mapped[dict[str, Any] | None] = mapped_column(JSON)
+    deleted_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
 
     episodes: Mapped[list["Episode"]] = relationship(back_populates="series", cascade="all, delete-orphan")
     references: Mapped[list["Reference"]] = relationship(

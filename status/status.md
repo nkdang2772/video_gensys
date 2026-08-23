@@ -3,8 +3,8 @@
 **Cập nhật:** 2026-08-24  
 **Thư mục dự án:** `D:\video_gensystem`  
 **Phiên bản ứng dụng:** `0.1.0`  
-**Giai đoạn hiện tại:** Phần A — Foundation  
-**Trạng thái:** Hoàn thành
+**Giai đoạn hiện tại:** Phần B — Domain CRUD
+**Trạng thái:** Bước 6–7 hoàn thành
 
 ## Tech stack đã chốt
 
@@ -50,11 +50,30 @@
 - `conda env create --dry-run -f environment.yml` đã resolve thành công trên Windows.
 - Tách ComfyUI/PyTorch/CUDA khỏi environment chung để tránh xung đột GPU theo driver/workflow.
 
+### Bước 6 — Series CRUD
+
+- Service `app/services/series.py` hỗ trợ create, list, get by ID, update và soft delete.
+- Slug được chuẩn hóa ASCII, unique toàn cục và không được tái sử dụng sau soft delete.
+- Series đã soft delete bị ẩn mặc định khỏi list/get.
+- CLI hoạt động với lệnh `python cli.py series create --name "Tên series"`.
+- Migration `0002_series_lifecycle` bổ sung `series.deleted_at`.
+
+### Bước 7 — Episode CRUD với snapshot
+
+- Tạo Episode trong một database transaction do service sở hữu.
+- Snapshot resolution, FPS, aspect ratio, style version, palette và font từ Series.
+- Pin mọi reference series-specific đang active và style anchor theo đúng current version.
+- Hỗ trợ pin shared reference được chọn explicit.
+- Từ chối tạo Episode nếu reference cần dùng thiếu current version.
+- Tạo đầy đủ cây thư mục episode theo quy trình.
+- Khi database hoặc filesystem lỗi, database rollback và folder episode mới được dọn sạch.
+- Migration `0002_series_lifecycle` bổ sung `reference.is_active`.
+
 ## Kết quả kiểm thử gần nhất
 
 ```text
 python -m app --version: 0.1.0
-pytest: 15 passed in 0.78s
+pytest: 26 passed
 alembic check: No new upgrade operations detected
 PRAGMA journal_mode: wal
 PRAGMA busy_timeout: 5000
@@ -62,16 +81,20 @@ Số bảng nghiệp vụ: 10
 pip check: No broken requirements found
 ```
 
-Kiểm thử đã bao phủ migration bằng raw SQL, CRUD cho mọi ORM model, constraints của chosen asset, invariant nhân vật và bảo mật đường dẫn.
+Kiểm thử đã bao phủ migration bằng raw SQL, CRUD cho mọi ORM model, Series CRUD,
+CLI create series, Episode snapshot/pin/folder tree, rollback khi disk/database lỗi,
+reference thiếu version, constraints của chosen asset, invariant nhân vật và bảo mật đường dẫn.
 
 ## Git
 
 - Foundation commit: `a5a1554 feat: build foundation schema and path safety`
+- Status/bug log commit: `11e2866 docs: add project status and bug log`
+- Conda commit: `7291ec4 build: add conda environment management`
 - GitHub Actions workflow đã được cấu hình cho Python 3.11.
 - CI cloud sẽ chạy sau khi repository được push lên GitHub.
 
 ## Bước tiếp theo
 
-Phần B — Domain CRUD, bắt đầu bằng Bước 6: Series CRUD.
+Phần C — Import, bắt đầu bằng Bước 8: Script parser.
 
-Chưa triển khai code của Phần B để bảo đảm đúng thứ tự dependency trong `build_order.txt`.
+Chưa triển khai Bước 8 trở đi để bảo đảm đúng thứ tự dependency trong `build_order.txt`.

@@ -3,7 +3,7 @@ from __future__ import annotations
 from datetime import datetime
 from typing import TYPE_CHECKING, Any
 
-from sqlalchemy import DateTime, ForeignKey, JSON, String, Text, UniqueConstraint
+from sqlalchemy import Boolean, DateTime, ForeignKey, JSON, String, Text, UniqueConstraint
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.db import Base
@@ -24,6 +24,7 @@ class Reference(TimestampMixin, Base):
     scope: Mapped[str] = mapped_column(String(32), default="series_specific", nullable=False)
     owning_series_id: Mapped[int | None] = mapped_column(ForeignKey("series.id", ondelete="CASCADE"))
     current_version: Mapped[int] = mapped_column(default=0, nullable=False)
+    is_active: Mapped[bool] = mapped_column(Boolean, default=True, nullable=False)
 
     owning_series: Mapped["Series | None"] = relationship(
         back_populates="references", foreign_keys=[owning_series_id]

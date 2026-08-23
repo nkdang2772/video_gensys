@@ -6,8 +6,8 @@
 ## Tổng quan
 
 - Lỗi đang mở: **0**
-- Lỗi đã đóng: **5**
-- Test regression hiện tại: **15/15 pass**
+- Lỗi đã đóng: **8**
+- Test regression hiện tại: **26/26 pass**
 
 ## BUG-001 — SQLAlchemy không suy luận được kiểu `created_at`
 
@@ -58,6 +58,36 @@
 - **Nguyên nhân:** Quyền sở hữu/quyền đọc của temp directory khác giữa runtime thường và runtime elevated.
 - **Cách sửa:** Chạy pytest với `--basetemp .venv\pytest-tmp` để temp nằm trong thư mục dự án đã được cấp quyền.
 - **Regression test:** 15 test pass trực tiếp tại `D:\video_gensystem`.
+
+## BUG-006 — Schema Foundation chưa hỗ trợ soft delete và reference active
+
+- **Trạng thái:** Đã đóng
+- **Mức độ:** Blocker cho Bước 6–7
+- **Phát hiện:** Khi đối chiếu yêu cầu Series soft delete và pin reference active với schema `0001`.
+- **Triệu chứng:** `Series` không có lifecycle field; `Reference` không thể phân biệt active/inactive.
+- **Nguyên nhân:** Hai field này không nằm trong data model ban đầu nhưng là dependency trực tiếp của build order.
+- **Cách sửa:** Tạo migration mới `0002_series_lifecycle`, thêm `series.deleted_at` và `reference.is_active`; không sửa migration lịch sử `0001`.
+- **Regression test:** Test list/get sau soft delete và test bỏ qua inactive reference khi pin.
+
+## BUG-007 — Tạo Episode có nguy cơ để lại database hoặc folder orphan
+
+- **Trạng thái:** Đã đóng
+- **Mức độ:** Cao
+- **Phát hiện:** Khi thiết kế transaction kết hợp SQLite và filesystem.
+- **Triệu chứng:** Database transaction không tự rollback thao tác tạo folder.
+- **Nguyên nhân:** SQLite và filesystem không có distributed transaction chung.
+- **Cách sửa:** Service sở hữu transaction; ghi database và tạo folder trong cùng operation, đồng thời xóa chính xác episode root vừa tạo khi filesystem, flush hoặc commit thất bại.
+- **Regression test:** Mô phỏng disk failure sau khi đã tạo folder con và database unique failure sau khi tạo folder; không còn Episode/pin/folder orphan.
+
+## BUG-008 — Reference thiếu current version có thể tạo Episode không tái lập được
+
+- **Trạng thái:** Đã đóng
+- **Mức độ:** Cao
+- **Phát hiện:** Khi triển khai EpisodeReferencePin.
+- **Triệu chứng:** Reference active hoặc style anchor có `current_version` không tồn tại thì không thể tạo pin chính xác.
+- **Nguyên nhân:** Thiếu validation trước khi tạo Episode.
+- **Cách sửa:** Mọi reference cần pin phải có `current_version > 0` và đúng `ReferenceVersion`; nếu thiếu, toàn bộ operation rollback và folder được dọn.
+- **Regression test:** Reference khai báo version nhưng thiếu record tương ứng bị từ chối; database và filesystem vẫn sạch.
 
 ## Quy ước cập nhật
 
