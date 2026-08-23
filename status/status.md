@@ -8,7 +8,8 @@
 
 ## Tech stack đã chốt
 
-- Python 3.11+; môi trường local hiện dùng Python 3.12.7.
+- Python 3.11+; Conda environment chuẩn pin Python 3.11, venv kiểm thử hiện dùng Python 3.12.7.
+- Conda quản lý Python, SQLite, FFmpeg/FFprobe và dependency phát triển qua `environment.yml`.
 - Streamlit cho giao diện MVP.
 - SQLAlchemy 2.x cho ORM.
 - SQLite cho database local.
@@ -45,6 +46,9 @@
   - Chuẩn hóa đường dẫn database bằng dấu `/`.
   - Chặn path traversal, absolute path và Windows drive-relative path.
 - Tạo venv tại `.venv` và database local tại `data/app.db`.
+- Thêm `environment.yml`; Conda là cách setup được khuyến nghị, còn `.venv` là fallback.
+- `conda env create --dry-run -f environment.yml` đã resolve thành công trên Windows.
+- Tách ComfyUI/PyTorch/CUDA khỏi environment chung để tránh xung đột GPU theo driver/workflow.
 
 ## Kết quả kiểm thử gần nhất
 
@@ -71,4 +75,3 @@ Kiểm thử đã bao phủ migration bằng raw SQL, CRUD cho mọi ORM model, 
 Phần B — Domain CRUD, bắt đầu bằng Bước 6: Series CRUD.
 
 Chưa triển khai code của Phần B để bảo đảm đúng thứ tự dependency trong `build_order.txt`.
-
