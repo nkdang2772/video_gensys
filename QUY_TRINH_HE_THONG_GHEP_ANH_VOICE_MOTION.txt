@@ -1,0 +1,1251 @@
+======================================================================
+QUY TRÌNH THIẾT KẾ HỆ THỐNG GHÉP ẢNH, VOICEOVER VÀ MOTION
+======================================================================
+
+Phiên bản          : 3.0 — Single-user MVP, multi-series
+Loại hệ thống      : Desktop/local visual production platform
+Người dùng         : 1 creator kiêm editor kiêm QA
+Đầu vào            : Kịch bản và voiceover đã chuẩn bị sẵn
+Đầu ra             : Preview, media package và shot_manifest.csv
+Thời gian MVP      : Khoảng 12 tuần part-time, mục tiêu ~180 giờ dev
+
+
+======================================================================
+1. MỤC TIÊU VÀ GIỚI HẠN
+======================================================================
+
+Hệ thống biến kịch bản và voiceover có sẵn thành một package gồm hình ảnh,
+motion và dữ liệu timing để hoàn thiện trong DaVinci Resolve.
+
+Hệ thống thực hiện:
+
+1. Quản lý nhiều series và nhiều episode.
+2. Nhập kịch bản, scene, shot và voiceover.
+3. Liên kết hoặc cắt voice theo shot.
+4. Đo duration thật bằng ffprobe.
+5. Quản lý reference theo series hoặc dùng chung.
+6. Tạo/import hình ảnh và chọn variation sử dụng.
+7. Nhóm shot theo nhân vật để render nhất quán hơn.
+8. Tạo Ken Burns, sprite, parallax, map hoặc generative motion.
+9. Ghép preview theo duration của voice.
+10. Kiểm tra asset thiếu, duration mismatch và placeholder.
+11. Xuất media package + shot_manifest.csv cho Resolve.
+
+Hệ thống không thực hiện:
+
+- Viết kịch bản.
+- Tạo TTS.
+- Approval/reject workflow nhiều người.
+- Trình dựng video thay thế DaVinci Resolve.
+- Timeline XML, OTIO hoặc FCPXML.
+- Cloud deployment, auth hoặc collaboration.
+- Tự đăng video lên YouTube.
+- AI tự duyệt toàn bộ ảnh/motion.
+
+
+======================================================================
+2. CÁC QUYẾT ĐỊNH THIẾT KẾ CỐT LÕI
+======================================================================
+
+2.1. Desktop-first
+
+- Chạy trên một máy Windows có GPU.
+- SQLite embedded.
+- Filesystem local.
+- Job queue lưu trong SQLite.
+- Python subprocess gọi ComfyUI, FFmpeg và FFprobe.
+- UI polling trạng thái khoảng 1 giây; không cần WebSocket.
+
+2.2. Cấu trúc nội dung
+
+Series → Episode → Scene → Shot
+
+- Series giữ cấu hình và reference dùng lại.
+- Episode snapshot cấu hình tại thời điểm tạo.
+- Shot là đơn vị nội dung, timing và asset.
+
+2.3. Không có approval workflow
+
+- Mỗi asset là một version immutable.
+- Asset được dùng có is_chosen=true.
+- Mỗi shot + asset_type chỉ có tối đa một version is_chosen=true.
+- Người dùng có thể đổi version được chọn bất kỳ lúc nào.
+- Không có reject queue, reviewer thread hoặc approval gate.
+
+2.4. Audio là nguồn thời gian chính
+
+- Dùng audio_duration_sec đo từ file thật.
+- Không dùng số từ hoặc duration ước tính làm timing cuối.
+
+2.5. Resolve handoff bằng file
+
+- Export media package theo shot_id.
+- Tạo shot_manifest.csv.
+- Không sinh timeline XML/OTIO trong MVP.
+
+
+======================================================================
+3. TECH STACK
+======================================================================
+
+Phương án ưu tiên chất lượng UX:
+
+- Desktop shell : Tauri + React.
+- Local API     : Python 3.11 + FastAPI chạy localhost embedded/sidecar.
+- Database      : SQLite.
+- Queue         : Bảng Job trong SQLite.
+- Worker        : Python subprocess.
+- Media         : FFmpeg + FFprobe.
+- GPU           : ComfyUI API.
+- Storage       : Filesystem local, đường dẫn cấu hình được.
+- Log           : JSONL theo ngày trong /logs/.
+
+Phương án ưu tiên tốc độ phát triển:
+
+- Streamlit + Python + SQLite + filesystem.
+- Không cần FastAPI nếu toàn bộ chạy cùng process/app.
+
+Phải chọn một phương án ngay khi bắt đầu. Không xây đồng thời Tauri, Electron
+và Streamlit.
+
+Không dùng trong MVP:
+
+- Redis/Celery.
+- PostgreSQL.
+- Docker.
+- WebSocket.
+- S3/cloud storage.
+- Auth, roles và permissions.
+- CI/CD phức tạp.
+
+
+======================================================================
+4. DATA MODEL
+======================================================================
+
+4.1. Series
+
+- id
+- slug
+- name
+- description
+- default_resolution
+- default_fps
+- default_aspect_ratio
+- style_anchor_reference_id
+- palette_json
+- font_config_json
+- created_at
+- updated_at
+
+4.2. Episode
+
+- id
+- series_id
+- episode_number
+- slug
+- title
+- status
+- effective_resolution
+- effective_fps
+- effective_aspect_ratio
+- style_anchor_version_snapshot
+- palette_snapshot_json
+- font_config_snapshot_json
+- target_duration_sec
+- root_path
+- created_at
+- updated_at
+
+Khi tạo Episode, hệ thống copy cấu hình hiệu lực từ Series vào snapshot. Việc
+đổi Series sau này không tự làm thay đổi episode cũ.
+
+4.3. Scene
+
+- id
+- episode_id
+- scene_number
+- title
+- description
+- order_index
+
+4.4. Shot
+
+- id
+- episode_id
+- scene_id
+- shot_id
+- order_index
+- speaker
+- voice_text
+- subtitle_text
+- visual_description
+- image_prompt
+- negative_prompt
+- characters_json
+- primary_character_id
+- location_reference_id
+- character_batch_key
+- audio_start_sec
+- audio_end_sec
+- audio_duration_sec
+- head_padding_sec
+- tail_padding_sec
+- motion_intent
+- motion_provider
+- hero_flag
+- camera_motion_json
+- motion_fill_policy: extend/loop/split
+- status
+- notes
+
+Quy tắc dữ liệu nhân vật:
+
+- characters_json là danh sách chuẩn các character_id xuất hiện trong shot.
+- Không được chứa ID trùng lặp hoặc character không tồn tại.
+- primary_character_id là nullable, nhưng nếu có giá trị thì bắt buộc phải
+  thuộc characters_json.
+- Nếu characters_json rỗng thì primary_character_id phải null.
+- UI mặc định primary theo speaker nếu speaker map được sang character; nếu
+  không, người dùng chọn thủ công.
+- App layer luôn validate invariant trên. Nếu SQLite có JSON1, bổ sung trigger
+  dùng json_each() để từ chối primary_character_id không nằm trong JSON.
+
+motion_intent:
+
+- static
+- pan
+- parallax
+- sprite
+- map
+- generative
+
+motion_provider:
+
+- none
+- internal_kenburns
+- fusion_parallax
+- sprite_local
+- map_local
+- wan_local
+- veo_cloud
+
+hero_flag:
+
+- false: shot thường.
+- true: shot quan trọng, cho phép priority/budget cao hơn.
+
+Không trộn provider hoặc priority vào motion_intent. Khi thay Wan bằng model
+khác, intent của shot không thay đổi.
+
+4.5. Reference
+
+- id
+- slug
+- name
+- reference_type: character/style/location/prop/map
+- scope: series_specific/shared_across_series
+- owning_series_id, null nếu shared
+- current_version
+- created_at
+- updated_at
+
+Reference mặc định là series_specific. Chỉ chia sẻ cross-series khi người dùng
+chủ động đổi scope.
+
+4.6. ReferenceVersion
+
+- id
+- reference_id
+- version
+- file_path
+- descriptor_json
+- checksum
+- created_at
+
+4.7. EpisodeReferencePin
+
+- id
+- episode_id
+- reference_id
+- reference_version_id
+
+Episode pin chính xác version reference đã sử dụng. Nếu một shot cần ngoại lệ,
+có thể thêm ShotReferenceOverride ở giai đoạn sau thay vì lưu JSON lặp trên
+mọi shot.
+
+Thời điểm pin được chốt là NGAY KHI TẠO EPISODE:
+
+- Trong cùng transaction tạo Episode, snapshot cấu hình Series và tạo
+  EpisodeReferencePin cho style anchor, toàn bộ reference series-specific đang
+  active và các shared reference được chọn cho episode.
+- Không pin lazy tại image job đầu tiên.
+- Nếu reference mới được thêm sau khi episode đã tạo, người dùng phải chủ động
+  thêm một pin cụ thể trước khi job được phép sử dụng reference đó.
+- Job không bao giờ tự lấy current_version mới nhất nếu episode chưa pin.
+
+4.8. Asset
+
+- id
+- episode_id
+- shot_id, có thể null với asset dùng chung
+- asset_type: audio/image/video/proxy/subtitle/music/sfx
+- version
+- is_chosen
+- provider
+- model
+- prompt
+- negative_prompt
+- seed
+- workflow_id
+- source_path
+- file_path
+- proxy_path
+- width
+- height
+- duration_sec
+- frame_rate
+- codec
+- file_size
+- checksum
+- created_at
+
+Ràng buộc:
+
+- Asset immutable sau khi tạo.
+- Unique version theo shot_id + asset_type + version.
+- Partial unique: tối đa một is_chosen=true cho shot_id + asset_type.
+- Regenerate tạo version mới, không ghi đè file.
+
+Quy tắc đường dẫn:
+
+- source_path, file_path và proxy_path của Asset luôn lưu dạng tương đối so với
+  Episode.root_path.
+- Dùng dấu phân cách chuẩn "/" trong database, kể cả khi chạy Windows.
+- Ví dụ: images/generated/s042_image_v03.png.
+- Khi đọc file, ứng dụng resolve và normalize:
+  absolute_path = Episode.root_path + relative_asset_path.
+- Import từ ngoài phải copy/hard-link vào episode folder trước khi tạo Asset;
+  không lưu đường dẫn tuyệt đối tới file nguồn bên ngoài.
+- Sau khi resolve, phải kiểm tra đường dẫn vẫn nằm bên trong Episode.root_path
+  để ngăn path traversal.
+
+4.9. Job
+
+- id
+- episode_id
+- shot_id
+- job_type
+- provider
+- priority
+- status: queued/running/done/failed/cancelled
+- progress_percent
+- attempt_count
+- max_attempts
+- input_payload_json
+- output_payload_json
+- error_message
+- worker_pid
+- cost_usd
+- cost_credit_amount
+- cost_credit_type: veo/imagen/other
+- cost_is_estimated
+- created_at
+- started_at
+- completed_at
+
+MVP lưu cost trên Job ngay từ đầu. Dashboard analytics chi tiết được để sau.
+
+4.10. SimpleQaNote
+
+- id
+- episode_id
+- shot_id
+- asset_id
+- category
+- note
+- is_resolved
+- created_at
+
+Đây chỉ là ghi chú cá nhân, không phải review/approval workflow.
+
+
+======================================================================
+5. FOLDER STRUCTURE
+======================================================================
+
+/library/
+    /references_shared/
+        /characters_generic/
+        /styles/
+    /series/
+        /tam_quoc/
+            series.json
+            /references/
+                /characters/
+                /styles/
+                /locations/
+                /props/
+                /maps/
+            /episodes/
+                /ep_01_xich_bich/
+                    episode.json
+                    shot_list.csv
+                    /script/
+                    /audio/
+                        /source/
+                        /segments/
+                        /normalized/
+                    /images/
+                        /generated/
+                        /chosen/
+                        /upscaled/
+                    /clips/
+                        /generated/
+                        /chosen/
+                        /normalized/
+                    /proxies/
+                    /qa/
+                    /export/
+                /ep_02_kinh_chau/
+                    ...
+        /than_thoai_vn/
+            ...
+/logs/
+    2026-08-24.jsonl
+
+Naming convention:
+
+{shot_id}_{asset_type}_v{version}_{state}.{extension}
+
+Ví dụ:
+
+s001_audio_v01_chosen.wav
+s001_image_v03_chosen.png
+s001_motion_v02_generated.mp4
+
+Database là nguồn trạng thái chính. Folder name giúp con người kiểm tra và
+import thủ công, nhưng không dùng folder name thay cho database transaction.
+
+
+======================================================================
+6. NGUYÊN TẮC XỬ LÝ
+======================================================================
+
+1. AUDIO DURATION LÀ NGUỒN THỜI GIAN CHÍNH.
+   Đo bằng ffprobe.
+
+2. ASSET VERSION IMMUTABLE.
+   Regenerate tạo version mới; is_chosen được chuyển bằng transaction.
+
+3. PROVIDER ADAPTER TỐI GIẢN.
+   ImageProvider.generate() và VideoProvider.generate(). Không xây framework
+   plugin lớn trong MVP.
+
+4. REFERENCE VERSION PIN.
+   Episode giữ chính xác version reference đã sử dụng.
+
+5. FAILURE PATH LUÔN VỀ STATIC.
+   Generative fail 3 lần → sprite/parallax → Ken Burns/static.
+
+6. NO SILENT SKIP.
+   Shot lỗi dùng placeholder đỏ có shot_id; không tự bỏ khỏi export.
+
+7. CROSS-SERIES SHARE PHẢI EXPLICIT.
+   Reference mặc định thuộc một series.
+
+8. EPISODE SNAPSHOT SERIES CONFIG.
+   Episode cũ không đổi khi Series được redesign.
+
+9. EXPORT PACKAGE + MANIFEST.
+   Không timeline XML/OTIO trong MVP.
+
+10. SQLITE ĐỦ CHO SINGLE USER.
+    Chỉ chuyển Postgres khi thực sự có nhiều người dùng.
+
+
+======================================================================
+7. WORKFLOW TỔNG THỂ
+======================================================================
+
+Tạo/chọn Series
+        ↓
+Tạo Episode và snapshot config/reference
+        ↓
+Import kịch bản + voiceover
+        ↓
+Cắt hoặc liên kết voice theo shot
+        ↓
+Chuẩn hóa Shot Plan
+        ↓
+Tạo/import image theo character group
+        ↓
+Chọn image version
+        ↓
+Tạo/chọn motion version
+        ↓
+Render preview
+        ↓
+Asset checker + QA report
+        ↓
+Export media package + shot_manifest.csv
+
+
+======================================================================
+8. CÔNG ĐOẠN 1 — SERIES VÀ EPISODE
+======================================================================
+
+Series:
+
+- Tạo series mới.
+- Chọn default resolution/FPS/aspect ratio.
+- Gán style anchor, palette và font.
+- Quản lý reference riêng series.
+- Có thể dùng reference shared một cách explicit.
+
+Episode:
+
+- Tạo episode trong series.
+- Snapshot cấu hình series.
+- Pin version reference.
+- Cho phép duplicate episode làm template.
+- Không copy asset thành phẩm trừ khi người dùng chọn rõ.
+
+
+======================================================================
+9. CÔNG ĐOẠN 2 — IMPORT KỊCH BẢN VÀ VOICE
+======================================================================
+
+Kịch bản hỗ trợ TXT, CSV hoặc JSON.
+
+Định dạng đề xuất:
+
+[SCENE: 01]
+[SHOT: s001]
+[SPEAKER: VO]
+[TEXT: Năm 208, Tào Tháo tiến quân xuống phía nam.]
+[VISUAL: Bản đồ Trung Quốc, quân Tào tiến xuống phía nam.]
+[MOTION_INTENT: map]
+
+Parser đọc:
+
+- scene
+- shot_id
+- speaker
+- text
+- visual_description
+- motion_intent
+
+Voiceover:
+
+- Ưu tiên mỗi shot có một WAV riêng.
+- Tên file chứa shot_id để auto-link.
+- File không liên kết được phải hiển thị cảnh báo.
+- Nếu chỉ có một file dài, waveform editor cho phép cắt thủ công.
+- Silence detection chỉ gợi ý, không tự xác nhận điểm cắt.
+- File source luôn được giữ nguyên.
+
+Kiểm tra import:
+
+- Không trùng hoặc thiếu shot_id.
+- Audio đọc được và duration > 0.
+- Không âm thầm bỏ qua file lỗi.
+
+
+======================================================================
+10. CÔNG ĐOẠN 3 — AUDIO SYNC
+======================================================================
+
+- Đo duration bằng ffprobe.
+- Tạo waveform proxy.
+- Cắt file dài thành audio segment theo shot.
+- Cho phép chỉnh head/tail padding.
+- Chuẩn hóa sample rate/channel khi cần.
+- Kiểm tra clipping.
+- Không xử lý mạnh hoặc ghi đè source.
+
+Timeline và preview luôn dùng:
+
+effective_duration = head_padding + audio_duration + tail_padding
+
+
+======================================================================
+11. CÔNG ĐOẠN 4 — SHOT MANAGER
+======================================================================
+
+Bảng chính:
+
+shot_id | scene | duration | speaker | visual | character | location
+        | motion_intent | provider | hero | image | motion | status
+
+Chức năng:
+
+- Inline edit.
+- Bulk edit character, location, motion_intent và provider.
+- Nghe voice trên từng dòng.
+- Filter theo status, character, scene và hero_flag.
+- Gộp, tách hoặc đổi order shot.
+- Gán reference.
+- Tạo character_batch_key.
+- Mở image/motion variation của shot.
+
+Single-user không cần nút approve/reject. Trạng thái hoàn thành được suy ra từ
+việc shot có audio và các asset bắt buộc đã có is_chosen=true.
+
+
+======================================================================
+12. CÔNG ĐOẠN 5 — REFERENCE LIBRARY
+======================================================================
+
+Quản lý:
+
+- Character sheet.
+- Pose sheet.
+- Style anchor.
+- Location.
+- Prop.
+- Map.
+- Palette và font.
+
+Reference có version immutable. EpisodeReferencePin được tạo ngay trong
+transaction tạo Episode, cùng với snapshot cấu hình Series. Việc cập nhật
+character sau đó không làm thay đổi pin, job hoặc asset của episode cũ. Một
+reference bổ sung sau thời điểm tạo episode phải được người dùng pin rõ ràng
+trước khi có thể dùng trong image/motion job.
+
+
+======================================================================
+13. CÔNG ĐOẠN 6 — IMAGE PIPELINE
+======================================================================
+
+Provider MVP:
+
+- Google image provider qua API chính thức nếu khả dụng.
+- ComfyUI local.
+- Manual upload là fallback.
+
+Mỗi image job nhận:
+
+- image_prompt
+- negative_prompt
+- pinned character/style/location reference
+- aspect ratio và resolution
+- model, seed và provider config
+
+13.1. Character grouping trong MVP
+
+character_batch_key không dựa vào primary_character_id. Nó được tính từ toàn
+bộ tổ hợp nhân vật trong shot:
+
+1. Validate characters_json và loại ID trùng.
+2. Sắp xếp character_id theo thứ tự tăng dần để tạo canonical list.
+3. Serialize canonical list theo một format cố định.
+4. Tính SHA-256 và dùng giá trị hex làm character_batch_key.
+
+Ví dụ:
+
+- ["sidekick", "tao_thao"]
+- ["tao_thao", "sidekick"]
+
+Hai danh sách trên phải tạo cùng một batch key. Shot một nhân vật và shot hai
+nhân vật không được đưa vào cùng batch chỉ vì có cùng primary_character_id.
+
+- Group/sort pending shot theo character_batch_key và pinned reference version.
+- Dùng toàn bộ character reference của tổ hợp cho cả nhóm.
+- Nếu provider có session/context, giữ cùng session trong lượt chạy.
+- Lưu character_batch_key trên Shot và Job input.
+- Thứ tự render không làm thay đổi order_index của video.
+
+MVP chưa cần entity RenderBatch, màn hình batch analytics hoặc pause/resume
+batch phức tạp. Có thể bổ sung sau.
+
+13.2. Variation
+
+- Mỗi kết quả là một Asset version mới.
+- Gallery hiển thị các version theo shot.
+- Chọn một version bằng is_chosen.
+- Regenerate không ghi đè version cũ.
+- Có thể sửa prompt trước khi regenerate.
+- Hỗ trợ upscale Real-ESRGAN hoặc workflow tương đương.
+
+13.3. Kiểm tra thủ công
+
+- Đúng nhân vật, trang phục và màu phe.
+- Không méo tay/mặt/đạo cụ rõ ràng.
+- Đúng bối cảnh và aspect ratio.
+- Có safe area cho bubble/subtitle.
+- Không có text AI sai.
+- Không có lỗi lịch sử rõ ràng.
+
+
+======================================================================
+14. CÔNG ĐOẠN 7 — MOTION PIPELINE
+======================================================================
+
+14.1. Pan/Ken Burns
+
+- Render preview nội bộ hoặc lưu camera instruction trong manifest.
+- Không sinh DaVinci XML fragment trong MVP.
+- Duration khớp effective audio duration.
+
+14.2. Sprite
+
+- Wobble, blink, bounce, pop hoặc gesture đơn giản.
+- Không lip-sync nếu policy không cho phép.
+
+14.3. Parallax
+
+- Tách foreground, character và background.
+- Camera motion nhỏ.
+- Kiểm tra viền layer và vùng bị thiếu.
+
+14.4. Map
+
+- Đổi màu lãnh thổ.
+- Đường tiến quân và marker địa điểm.
+- Pan/zoom theo tuyến.
+- Ưu tiên animation xác định thay vì generative video.
+
+14.5. Generative motion
+
+Provider:
+
+- wan_local qua ComfyUI.
+- veo_cloud là optional provider cho hero_flag=true.
+
+Job lưu:
+
+- chosen source image
+- prompt/negative prompt
+- pinned reference version
+- workflow/model/seed
+- frame count/FPS/resolution
+- cost fields
+
+Failure path:
+
+- Tối đa ba lần thử theo cấu hình.
+- Giảm motion strength hoặc giữ camera tĩnh.
+- Nếu vẫn lỗi, fallback sprite/parallax.
+- Cuối cùng fallback pan/static.
+- Không để shot rỗng.
+
+14.6. Policy khi motion clip ngắn hơn voice
+
+So sánh clip_duration_sec với effective_duration của shot.
+
+Mặc định — extend:
+
+- Phát motion clip đúng một lần.
+- Từ frame cuối của clip, tạo still frame cho phần thời gian còn lại.
+- Áp dụng Ken Burns/pan rất nhẹ lên still frame để tránh cảm giác đứng hình.
+- Không loop generative clip mặc định vì chuyển động tuần hoàn thường lộ rõ.
+
+Tùy chọn — split:
+
+- Người dùng tách shot thành các sub-shot độc lập khi cần nhiều hình/motion.
+- Mỗi sub-shot có shot_id, audio segment, asset và order_index riêng.
+- Ví dụ s042 được tách thành s042_01, s042_02, s042_03.
+- Tổng effective_duration của các sub-shot phải khớp audio của shot gốc.
+
+Tùy chọn — loop:
+
+- Chỉ dùng khi clip thực sự seamless hoặc chuyển động có tính chu kỳ.
+- Người dùng phải chọn motion_fill_policy=loop một cách explicit.
+
+Nếu clip dài hơn shot, trim ở cuối theo effective_duration. Giá trị mặc định
+của motion_fill_policy là extend và phải được ghi vào shot_manifest.csv.
+
+
+======================================================================
+15. CÔNG ĐOẠN 8 — SQLITE JOB QUEUE VÀ WORKER
+======================================================================
+
+Queue priority:
+
+- high: waveform, thumbnail và preview shot.
+- normal: metadata, proxy và normalize.
+- image: generate/upscale ảnh.
+- gpu: generative motion.
+- overnight: batch dài.
+- export: preview/package.
+
+Worker:
+
+- Poll SQLite để nhận job.
+- Khi claim job, mở transaction bằng BEGIN IMMEDIATE.
+- Trong transaction, chọn một job queued phù hợp rồi UPDATE thành running kèm
+  worker_pid; commit ngay sau khi claim.
+- Thực hiện API/GPU/FFmpeg bên ngoài transaction, không giữ write lock trong
+  suốt thời gian render.
+- Báo progress vào database.
+- Gọi ComfyUI/API/FFmpeg.
+- Kiểm tra output tồn tại, đọc được và duration hợp lệ.
+- Tạo Asset version.
+- Ghi cost nếu có.
+- Retry có giới hạn.
+
+Yêu cầu:
+
+- Bật PRAGMA journal_mode=WAL ngay khi khởi tạo database.
+- Cấu hình PRAGMA busy_timeout cho mọi connection.
+- Khi gặp SQLITE_BUSY/locked, retry bằng exponential backoff có jitter và giới
+  hạn số lần thử; không busy-loop liên tục.
+- Mỗi worker dùng connection riêng, không chia sẻ connection giữa thread.
+- Claim job là thao tác atomic; hai worker không được nhận cùng một job.
+- Job idempotent.
+- App khởi động lại không mất queue.
+- Job running quá timeout được đánh dấu stale và phục hồi.
+- RTX 3080 Ti chỉ chạy một job GPU nặng tại một thời điểm.
+- Không cần Redis hoặc worker service trên máy khác.
+
+MVP có thể chạy hai worker logic song song, ví dụ một image worker và một
+motion worker. SQLite WAL cho phép đọc đồng thời, nhưng vẫn chỉ có một writer
+tại một thời điểm; vì vậy transaction claim/progress phải ngắn và có retry.
+
+
+======================================================================
+16. CÔNG ĐOẠN 9 — PREVIEW
+======================================================================
+
+Shot preview:
+
+- Phát voice + image/motion đồng thời.
+- Có loop và hiển thị duration.
+- Cho phép đổi chosen version.
+
+Scene preview:
+
+- Ghép các shot trong scene.
+- Kiểm tra nhịp và style consistency.
+
+Full preview:
+
+- Proxy 720p H.264.
+- Tạo bằng FFmpeg.
+- Shot thiếu asset dùng placeholder đỏ có shot_id.
+- Full preview có thể là cut line nếu deadline bị chậm.
+
+
+======================================================================
+17. CÔNG ĐOẠN 10 — ASSET CHECKER VÀ QA REPORT
+======================================================================
+
+Kiểm tra tự động:
+
+[ ] Không trùng hoặc thiếu shot_id.
+[ ] Mọi shot có audio duration > 0.
+[ ] Mọi shot có chosen image hoặc chosen motion theo yêu cầu.
+[ ] File chosen tồn tại và checksum/metadata đọc được.
+[ ] Không có job running/stale/failed chưa xử lý.
+[ ] Clip đúng resolution, FPS và codec.
+[ ] Mỗi motion ngắn hơn voice có motion_fill_policy hợp lệ.
+[ ] Shot dùng extend có still frame cuối và Ken Burns nhẹ được tạo thành công.
+[ ] Shot dùng loop đã được đánh dấu explicit và clip đủ seamless.
+[ ] Tổng timing gần bằng tổng audio hiệu lực.
+[ ] Placeholder được liệt kê rõ.
+[ ] Không có frame đen/trắng bất thường ở mức kiểm tra kỹ thuật.
+
+Đầu ra:
+
+- /qa/report.html
+- /qa/report.json
+
+QA thủ công vẫn cần kiểm tra nội dung, character consistency, warp/flicker,
+map, nhịp dựng và music/SFX.
+
+
+======================================================================
+18. CÔNG ĐOẠN 11 — EXPORT CHO DAVINCI RESOLVE
+======================================================================
+
+Export folder:
+
+/export/
+    README_IMPORT.txt
+    project_manifest.json
+    shot_manifest.csv
+    /audio/
+    /images/
+    /clips/
+    /subtitles/     (nếu có)
+
+shot_manifest.csv:
+
+- series_slug
+- episode_slug
+- scene_id
+- shot_id
+- order_index
+- speaker
+- audio_path
+- image_path
+- motion_path
+- effective_duration_sec
+- motion_intent
+- motion_provider
+- hero_flag
+- camera_motion_json
+- motion_fill_policy
+- subtitle_path
+- notes
+
+Quy trình:
+
+1. Copy hoặc hard-link chosen media vào export folder.
+2. Chuẩn hóa tên file bắt đầu bằng shot_id.
+3. Tạo manifest và README_IMPORT.txt.
+4. Editor import folder vào Resolve.
+5. Sort theo tên/shot_id rồi dựng theo manifest.
+
+MVP không tạo XML, OTIO hoặc FCPXML. Package + CSV là phương án chính, dễ
+kiểm tra và luôn có thể sử dụng thủ công.
+
+
+======================================================================
+19. CÁC MÀN HÌNH MVP
+======================================================================
+
+1. Series List
+   - Tạo, sửa và mở series.
+
+2. Episode List
+   - Tạo, duplicate và mở episode.
+
+3. Import & Audio Sync
+   - Import script/audio, waveform và cắt audio.
+
+4. Shot Manager
+   - Inline edit, bulk edit, filter và nghe voice.
+
+5. Reference Library
+   - Shared/per-series reference, version và pin.
+
+6. Image Gallery
+   - Generate/upload, variation và is_chosen.
+
+7. Motion Queue
+   - Job progress, retry, preview và fallback.
+
+8. Preview
+   - Shot, scene và full proxy.
+
+9. QA & Export
+   - Asset checker, HTML report, package và manifest.
+
+10. Settings
+    - Paths, provider key, ComfyUI URL, FFmpeg và defaults.
+
+
+======================================================================
+20. BẢO MẬT, LOG VÀ BACKUP
+======================================================================
+
+- Chỉ bind localhost.
+- API key lưu trong .env ngoài export/package.
+- Không ghi secret vào log.
+- Validate path và file upload.
+- Chặn path traversal.
+- Log JSONL theo ngày.
+- Backup SQLite trước migration.
+- Backup manifest và chosen asset.
+- Không xây auth/roles cho single-user MVP.
+
+Log tối thiểu:
+
+- timestamp
+- series_id
+- episode_id
+- shot_id
+- asset_id
+- job_id
+- provider
+- event
+- error_code
+- duration_ms
+- cost fields
+
+
+======================================================================
+21. COST TRACKING
+======================================================================
+
+Trong MVP:
+
+- Lưu cost trên Job nếu provider trả về.
+- Nếu dùng credit, lưu amount và credit type.
+- Nếu tính theo bảng giá cấu hình, đánh dấu cost_is_estimated=true.
+- Regenerate vẫn được tính vào tổng chi phí.
+
+Sau MVP:
+
+- Episode cost.
+- Average cost per shot.
+- Cost by provider/job type.
+- Shot có chi phí cao nhất.
+- Series-level cost analytics.
+
+Không cần xây dashboard cost đầy đủ trong 12 tuần đầu, nhưng schema không được
+bỏ các trường cost.
+
+
+======================================================================
+22. FEATURE SCOPE
+======================================================================
+
+22.1. MUST-HAVE — MVP
+
+Series/Episode:
+
+[ ] Series default config.
+[ ] Episode snapshot/inherit.
+[ ] Duplicate episode.
+
+Import/Audio:
+
+[ ] TXT/CSV/JSON parser.
+[ ] Auto-link voice theo shot_id.
+[ ] FFprobe duration.
+[ ] Waveform + cắt file dài thủ công.
+
+Shot/Reference:
+
+[ ] Shot Manager inline/bulk edit.
+[ ] Shared/per-series Reference Library.
+[ ] Reference version pin theo Episode.
+
+Image:
+
+[ ] Google image adapter hoặc manual upload.
+[ ] ComfyUI local adapter.
+[ ] Character grouping mức nhẹ.
+[ ] Immutable version + is_chosen.
+[ ] Regenerate và upscale.
+
+Motion:
+
+[ ] Pan/Ken Burns.
+[ ] Wan local qua ComfyUI.
+[ ] Sprite/parallax preset đơn giản.
+[ ] Failure fallback về static.
+[ ] Veo provider optional; không block release.
+
+Preview/Export:
+
+[ ] Shot và scene preview.
+[ ] Full preview proxy 720p nếu còn thời gian.
+[ ] Asset checker + HTML/JSON report.
+[ ] Media package + shot_manifest.csv.
+
+22.2. NICE-TO-HAVE — SAU MVP
+
+[ ] Cost analytics dashboard.
+[ ] RenderBatch entity và batch session management đầy đủ.
+[ ] Series-level analytics.
+[ ] Cold-open/template system.
+[ ] Automatic backup ra external drive.
+[ ] Subtitle SRT export.
+[ ] Timeline preview/editor nâng cao.
+[ ] Veo cloud nếu chưa kịp trong MVP.
+
+22.3. OUT-OF-SCOPE
+
+[x] Auth, roles và permissions.
+[x] Multi-user collaboration.
+[x] Approval/reject workflow.
+[x] Realtime sync nhiều máy.
+[x] Web editor thay DaVinci.
+[x] Cloud deployment.
+[x] Mobile app.
+[x] Auto-post YouTube.
+[x] AI auto-review.
+[x] XML/OTIO/FCPXML handoff.
+[x] TTS.
+[x] Script writing.
+
+
+======================================================================
+23. ROADMAP — 12 TUẦN PART-TIME
+======================================================================
+
+M1 — SKELETON + IMPORT (2 tuần)
+
+- Chốt Tauri hoặc Streamlit.
+- SQLite schema.
+- Series/Episode screen.
+- Import script + voice.
+- Shot list và audio playback.
+- CLI nhỏ để test core không phụ thuộc UI.
+
+Deliverable:
+Nhập được tập Xích Bích, thấy shot list và nghe voice.
+
+M2 — REFERENCE + SHOT MANAGER (3 tuần)
+
+- Reference CRUD và version.
+- Series/shared scope.
+- Episode reference pin.
+- Shot Manager inline/bulk edit.
+- Waveform và audio cut.
+
+Deliverable:
+Hoàn thành shot plan và reference cho sáu nhân vật Tam Quốc.
+
+M3 — IMAGE + MOTION (4 tuần)
+
+- Provider adapter tối giản.
+- SQLite job queue và worker.
+- Character grouping mức nhẹ.
+- Image variation + is_chosen.
+- ComfyUI/Wan.
+- Ken Burns và fallback.
+- Veo chỉ làm nếu không ảnh hưởng deadline.
+
+Deliverable:
+Tạo được khoảng 80 ảnh và 15 motion clip cho tập Xích Bích.
+
+M4 — PREVIEW + EXPORT (3 tuần)
+
+- Shot/scene preview.
+- Full proxy nếu còn thời gian.
+- Asset checker + QA report.
+- Media package.
+- shot_manifest.csv + README_IMPORT.txt.
+
+Deliverable:
+Xuất package dùng được trong Resolve và hoàn thành tập thử nghiệm.
+
+
+======================================================================
+24. CUT LINES NẾU CHẬM DEADLINE
+======================================================================
+
+Cắt theo thứ tự:
+
+CUT 1: Veo cloud provider.
+       Chỉ dùng Wan local hoặc upload clip thủ công.
+
+CUT 2: Full preview trong app.
+       Giữ shot/scene preview; xem full trong Resolve.
+
+CUT 3: Waveform editor.
+       Yêu cầu voice đã được tách sẵn theo shot_id.
+
+CUT 4: Gallery UI nâng cao.
+       Vẫn giữ immutable versions và is_chosen, nhưng dùng danh sách đơn giản.
+
+CUT 5: Character session batching nâng cao.
+       Vẫn sort/group theo character, bỏ session/pause/resume riêng.
+
+CUT 6: Reference pin UI nâng cao.
+       Tự snapshot reference khi tạo episode, chưa hỗ trợ override từng shot.
+
+Không cắt:
+
+- Asset immutable.
+- Audio duration từ ffprobe.
+- No silent skip.
+- SQLite persistence.
+- Media package + manifest.
+
+
+======================================================================
+25. KIỂM THỬ
+======================================================================
+
+Unit test:
+
+- Parser và shot_id.
+- Episode snapshot.
+- Reference pin.
+- Reference pin được tạo ngay trong transaction tạo Episode.
+- primary_character_id luôn thuộc characters_json.
+- character_batch_key không phụ thuộc thứ tự character trong JSON.
+- Audio duration/padding.
+- Asset version/is_chosen constraint.
+- Resolve relative Asset path và chặn path traversal.
+- Motion fallback.
+- Motion fill: extend, split, loop và trim clip dài.
+- Cost calculation.
+
+Integration test:
+
+- SQLite queue/worker.
+- Hai worker claim job song song không nhận trùng job.
+- WAL + busy timeout + retry phục hồi đúng khi gặp SQLITE_BUSY.
+- FFmpeg/FFprobe.
+- ComfyUI.
+- Image provider.
+- Filesystem storage.
+- Package/manifest export.
+
+End-to-end:
+
+- Series → Episode → import → image → motion → preview → export.
+
+Failure test:
+
+- File audio hỏng/mất.
+- Provider timeout/rate limit.
+- Worker/app restart giữa job.
+- ComfyUI hết VRAM.
+- Ổ đĩa đầy.
+- Output duration bằng 0.
+- Hai asset cùng is_chosen.
+- Chosen file bị xóa ngoài ứng dụng.
+
+
+======================================================================
+26. SUCCESS METRICS
+======================================================================
+
+MVP thành công khi:
+
+1. Sản xuất tập Xích Bích end-to-end trong hệ thống.
+2. Tập Kinh Châu tái sử dụng reference của tập trước.
+3. Tạo series thứ hai mà không cần sửa code.
+4. Không mất asset hoặc trạng thái giữa các session.
+5. Shot lỗi luôn xuất hiện dưới dạng cảnh báo/placeholder.
+6. Media package import được vào Resolve theo shot_id.
+7. Sau khi workflow ổn định, tổng thời gian sản xuất một tập hướng tới
+   tối đa 15 giờ, bao gồm hoàn thiện trong Resolve.
+
+
+======================================================================
+27. CHECKLIST HOÀN THÀNH MỘT EPISODE
+======================================================================
+
+[ ] Episode đã snapshot config và pin reference.
+[ ] Pin được tạo ngay khi Episode được tạo, không lấy latest version lúc render.
+[ ] Không trùng hoặc thiếu shot_id.
+[ ] primary_character_id hợp lệ trong characters_json.
+[ ] character_batch_key đã tính từ canonical sorted character set.
+[ ] Mọi voice liên kết đúng shot.
+[ ] Duration đo từ audio thật.
+[ ] Mỗi shot có chosen image hoặc motion theo yêu cầu.
+[ ] Không có hai chosen asset cùng type trong một shot.
+[ ] Motion lỗi đã fallback hoặc được thay thế.
+[ ] Motion ngắn hơn voice đã áp dụng fill policy rõ ràng.
+[ ] Media đã chuẩn hóa resolution/FPS/codec.
+[ ] Asset path trong database là relative-to-episode-root.
+[ ] Không còn job running/stale/failed chưa xử lý.
+[ ] Placeholder được liệt kê trong QA report.
+[ ] Đã xem shot/scene preview.
+[ ] Đã tạo shot_manifest.csv.
+[ ] Đã kiểm tra README và media package.
+[ ] Database và chosen asset đã được backup.
+
+
+======================================================================
+28. KẾT LUẬN
+======================================================================
+
+MVP tập trung vào bốn giá trị:
+
+1. Quản lý nhiều series và tái sử dụng reference an toàn.
+2. Đồng bộ voice với shot bằng duration thật.
+3. Quản lý immutable image/motion versions và chọn asset sử dụng.
+4. Xuất package ổn định cho DaVinci Resolve mà không phụ thuộc XML/OTIO.
+
+Mọi tính năng không trực tiếp phục vụ bốn giá trị này phải được xem là
+nice-to-have hoặc out-of-scope trong 12 tuần đầu.

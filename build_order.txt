@@ -1,0 +1,472 @@
+═══════════════════════════════════════════════════════════════════
+BUILD ORDER — THỨ TỰ VIẾT CODE
+═══════════════════════════════════════════════════════════════════
+30 bước từ commit đầu đến khi export được video.
+Đi từ trên xuống, không skip. Mỗi bước có dependency rõ.
+Dev không được nhảy sang bước sau khi bước trước chưa pass DoD.
+
+
+═══════════════════════════════════════════════════════════════════
+PHẦN A — FOUNDATION (Tuần 1, ~15 giờ)
+═══════════════════════════════════════════════════════════════════
+Không có phần này, không code được gì. Làm đúng, làm chậm cũng OK.
+
+────────────────────────────────────────────────────────
+BƯỚC 1 — Setup repo và tech stack
+────────────────────────────────────────────────────────
+File     : repo skeleton, pyproject.toml, README.md
+Depends  : (không)
+Làm      : git init, chọn Tauri hoặc Streamlit (ĐÃ CHỐT Ở KICKOFF),
+           setup Python venv/uv, cài dependencies chính
+DoD      : `python -m app --version` in ra version. Commit chạy CI.
+
+────────────────────────────────────────────────────────
+BƯỚC 2 — SQLite + WAL + Alembic
+────────────────────────────────────────────────────────
+File     : app/db.py, alembic.ini, migrations/env.py
+Depends  : bước 1
+Làm      : Khởi tạo SQLite. PRAGMA journal_mode=WAL và
+           busy_timeout=5000 chạy MỖI LẦN open connection.
+           Setup Alembic empty migration.
+DoD      : Chạy `alembic upgrade head` không lỗi. Verify PRAGMA
+           bằng `PRAGMA journal_mode;` trả "wal".
+
+────────────────────────────────────────────────────────
+BƯỚC 3 — Schema đầy đủ 10 bảng (một migration)
+────────────────────────────────────────────────────────
+File     : migrations/versions/0001_initial.py
+Depends  : bước 2
+Làm      : Viết migration cho: Series, Episode, Scene, Shot,
+           Reference, ReferenceVersion, EpisodeReferencePin, Asset,
+           Job, SimpleQaNote. Đầy đủ field theo doc mục 4.
+           Đặc biệt: partial unique index cho Asset(is_chosen=true).
+DoD      : Chạy migration xong, `sqlite3` liệt kê đủ 10 bảng.
+           Insert thử record mỗi bảng qua raw SQL, verify constraint.
+
+────────────────────────────────────────────────────────
+BƯỚC 4 — ORM models (SQLAlchemy)
+────────────────────────────────────────────────────────
+File     : app/models/*.py
+Depends  : bước 3
+Làm      : Model class cho từng bảng. Relationship rõ ràng.
+           Validator ở app layer cho invariants (primary character).
+DoD      : Unit test: tạo, đọc, xoá record cho mọi model.
+           Test invariant: primary_character_id không thuộc
+           characters_json phải raise.
+
+────────────────────────────────────────────────────────
+BƯỚC 5 — Path resolver helper
+────────────────────────────────────────────────────────
+File     : app/paths.py
+Depends  : bước 4
+Làm      : Function resolve(episode, relative_path) → absolute Path.
+           Function to_relative(episode, absolute_path) → str.
+           Validate KHÔNG cho path traversal (resolved phải nằm
+           trong episode.root_path).
+DoD      : Unit test: input "../../etc/passwd" phải raise ValueError.
+           Input "images/s001.png" phải resolve đúng.
+
+
+═══════════════════════════════════════════════════════════════════
+PHẦN B — DOMAIN CRUD (Tuần 2, ~10 giờ)
+═══════════════════════════════════════════════════════════════════
+
+────────────────────────────────────────────────────────
+BƯỚC 6 — Series CRUD
+────────────────────────────────────────────────────────
+File     : app/services/series.py
+Depends  : bước 4
+Làm      : create, list, get_by_id, update, soft delete.
+           Slug unique global.
+DoD      : Unit test 5 case. CLI: `cli.py series create --name X`.
+
+────────────────────────────────────────────────────────
+BƯỚC 7 — Episode CRUD với snapshot
+────────────────────────────────────────────────────────
+File     : app/services/episode.py
+Depends  : bước 6
+Làm      : Tạo Episode trong 1 TRANSACTION:
+           1. Copy config từ Series → snapshot fields
+           2. Tạo EpisodeReferencePin cho MỌI reference
+              series-specific đang active + style_anchor
+           3. Tạo folder cấu trúc trên disk
+           Commit hoặc rollback all.
+DoD      : Unit test: tạo Episode, verify snapshot khớp series.
+           Verify pin đầy đủ cho toàn bộ ref active.
+           Verify rollback khi disk fail — không có Episode
+           orphan trong DB.
+
+
+═══════════════════════════════════════════════════════════════════
+PHẦN C — IMPORT (Tuần 2-3, ~15 giờ)
+═══════════════════════════════════════════════════════════════════
+
+────────────────────────────────────────────────────────
+BƯỚC 8 — Script parser
+────────────────────────────────────────────────────────
+File     : app/parsers/script_txt.py, script_csv.py, script_json.py
+Depends  : bước 7
+Làm      : Parse format [SCENE:] [SHOT:] [SPEAKER:] [TEXT:] [VISUAL:]
+           [MOTION_INTENT:] theo doc mục 9.
+           Multi-line trong VISUAL và TEXT phải xử lý được.
+           Detect trùng shot_id, thiếu shot_id → raise ParseError.
+DoD      : Test với kịch bản Xích Bích thật (80 shot) parse ra
+           đúng số shot. Test edge case: multi-line, thiếu SHOT,
+           trùng shot_id.
+
+────────────────────────────────────────────────────────
+BƯỚC 9 — FFprobe wrapper
+────────────────────────────────────────────────────────
+File     : app/media/ffprobe.py
+Depends  : bước 5
+Làm      : subprocess call ffprobe, parse JSON output.
+           Trả về: duration_sec, sample_rate, channels, codec.
+           Timeout 30s, raise nếu duration = 0.
+DoD      : Test với 3 file WAV thật (short/long/broken).
+
+────────────────────────────────────────────────────────
+BƯỚC 10 — Voice auto-link + import
+────────────────────────────────────────────────────────
+File     : app/services/import_voice.py
+Depends  : bước 8, bước 9
+Làm      : Nhận folder WAV, match tên file với shot_id
+           (regex: s\d+ hoặc keyword ở đầu tên).
+           Đo duration, tạo Asset(asset_type=audio, is_chosen=true).
+           File không match → cảnh báo, không silent skip.
+DoD      : Import 80 WAV Xích Bích, tất cả link đúng shot.
+           File tên sai được liệt kê trong warning report.
+
+
+═══════════════════════════════════════════════════════════════════
+PHẦN D — REFERENCE + SHOT MANAGER (Tuần 3-5, ~30 giờ)
+═══════════════════════════════════════════════════════════════════
+
+────────────────────────────────────────────────────────
+BƯỚC 11 — Reference + Version CRUD
+────────────────────────────────────────────────────────
+File     : app/services/reference.py
+Depends  : bước 4
+Làm      : create Reference (series-specific hoặc shared).
+           add_version (tăng version, immutable, tính checksum).
+           list_versions per reference. get_version_by_id.
+DoD      : CLI: tạo character "tao_thao", add v1, v2, v3.
+           Không sửa được file của version cũ.
+
+────────────────────────────────────────────────────────
+BƯỚC 12 — character_batch_key computation
+────────────────────────────────────────────────────────
+File     : app/services/character_batch.py
+Depends  : bước 4
+Làm      : function compute_batch_key(characters_list):
+           1. Validate không trùng ID
+           2. Sort ID ascending
+           3. Serialize canonical: json.dumps(sorted, sort_keys=True)
+           4. SHA-256 hex digest
+DoD      : Unit test: ["sidekick","tao_thao"] và
+           ["tao_thao","sidekick"] cùng key.
+           Empty list và [null] cho ra key khác nhau.
+
+────────────────────────────────────────────────────────
+BƯỚC 13 — Shot service (CRUD + invariants)
+────────────────────────────────────────────────────────
+File     : app/services/shot.py
+Depends  : bước 12
+Làm      : create, update Shot. Trigger compute_batch_key khi
+           characters_json thay đổi.
+           Enforce invariant: primary_character_id ∈ characters_json
+           trước khi save.
+           Bulk update cho nhiều shot cùng lúc.
+DoD      : Update primary_character_id không thuộc characters_json
+           phải raise. Bulk update 20 shot với characters mới
+           regenerate batch_key đúng.
+
+────────────────────────────────────────────────────────
+BƯỚC 14 — Waveform + audio cutter (nếu cần)
+────────────────────────────────────────────────────────
+File     : app/media/waveform.py, audio_cutter.py
+Depends  : bước 9
+Làm      : Sinh waveform PNG proxy từ WAV (matplotlib hoặc SoX).
+           Cắt file WAV dài thành segment theo timestamp.
+           Silence detection gợi ý (pydub.silence).
+           KHÔNG ghi đè file source.
+DoD      : Cắt 1 file 5 phút thành 10 segment. Duration tổng
+           không lệch quá 0.1s.
+
+
+═══════════════════════════════════════════════════════════════════
+PHẦN E — UI CƠ BẢN (Tuần 3-5, song song với D)
+═══════════════════════════════════════════════════════════════════
+
+────────────────────────────────────────────────────────
+BƯỚC 15 — Screen 1-2: Series/Episode list
+────────────────────────────────────────────────────────
+File     : app/ui/screens/series_list, episode_list
+Depends  : bước 6, 7
+Làm      : List, create, open. Không cần đẹp.
+DoD      : Tạo được series "Tam Quốc", tạo episode "Xích Bích".
+
+────────────────────────────────────────────────────────
+BƯỚC 16 — Screen 3: Import
+────────────────────────────────────────────────────────
+File     : app/ui/screens/import.py
+Depends  : bước 10, 15
+Làm      : Upload script + folder WAV, hiển thị kết quả parse
+           và link.
+DoD      : Import Xích Bích thành công qua UI, thấy shot list.
+
+────────────────────────────────────────────────────────
+BƯỚC 17 — Screen 4: Shot Manager
+────────────────────────────────────────────────────────
+File     : app/ui/screens/shot_manager.py
+Depends  : bước 13, 16
+Làm      : Bảng shot với inline edit, bulk edit, filter,
+           play voice per row.
+DoD      : Sửa visual_description 10 shot, filter theo scene,
+           bulk assign character cho 20 shot.
+
+────────────────────────────────────────────────────────
+BƯỚC 18 — Screen 5: Reference Library
+────────────────────────────────────────────────────────
+File     : app/ui/screens/reference.py
+Depends  : bước 11, 15
+Làm      : Tab per reference_type + tab shared/per-series.
+           Upload version mới.
+DoD      : Upload 6 character reference cho Tam Quốc, mỗi cái
+           có ít nhất 1 version. Episode Xích Bích tự pin.
+
+
+═══════════════════════════════════════════════════════════════════
+PHẦN F — JOB QUEUE (Tuần 6, ~15 giờ)
+═══════════════════════════════════════════════════════════════════
+Không có phần này, image/motion pipeline không chạy được.
+
+────────────────────────────────────────────────────────
+BƯỚC 19 — Job model + enqueue
+────────────────────────────────────────────────────────
+File     : app/queue/job.py
+Depends  : bước 4
+Làm      : enqueue(job_type, priority, payload, episode_id, shot_id).
+           get_status, list_queued.
+DoD      : Enqueue 5 job, query queued list ra đúng thứ tự priority.
+
+────────────────────────────────────────────────────────
+BƯỚC 20 — Worker: claim job atomic
+────────────────────────────────────────────────────────
+File     : app/queue/worker.py
+Depends  : bước 19
+Làm      : Poll loop. Khi claim:
+           - Open connection riêng
+           - BEGIN IMMEDIATE
+           - SELECT job queued LIMIT 1 với priority order
+           - UPDATE status='running', worker_pid
+           - COMMIT
+           - Xử lý ngoài transaction
+           - Retry SQLITE_BUSY với exp backoff + jitter
+DoD      : Integration test: 2 worker chạy song song, enqueue 20
+           job, mỗi job chỉ được nhận đúng 1 lần.
+
+────────────────────────────────────────────────────────
+BƯỚC 21 — Stale job recovery
+────────────────────────────────────────────────────────
+File     : app/queue/recovery.py
+Depends  : bước 20
+Làm      : Job running > timeout (config, mặc định 30 phút)
+           → set status='failed' với error='stale', tăng attempt.
+           Job failed với attempt < max_attempts → set 'queued'.
+DoD      : Simulate kill worker giữa job, chạy recovery, job
+           quay về queued.
+
+
+═══════════════════════════════════════════════════════════════════
+PHẦN G — IMAGE PIPELINE (Tuần 7, ~20 giờ)
+═══════════════════════════════════════════════════════════════════
+
+────────────────────────────────────────────────────────
+BƯỚC 22 — ImageProvider interface + adapters
+────────────────────────────────────────────────────────
+File     : app/providers/image/base.py, google.py, comfyui.py
+Depends  : bước 20
+Làm      : Interface: generate(prompt, reference_images, config)
+           → Path to output PNG.
+           Impl Google (Nano Banana qua Gemini API).
+           Impl ComfyUI local (POST workflow JSON, poll result).
+           Impl manual upload fallback.
+DoD      : Sinh được ảnh test qua cả 3 provider. Ghi cost fields.
+
+────────────────────────────────────────────────────────
+BƯỚC 23 — Image generation worker
+────────────────────────────────────────────────────────
+File     : app/workers/image_gen.py
+Depends  : bước 22
+Làm      : Worker nhận job type='image_gen'. Load Shot + ref pin
+           version → gọi provider → save Asset version mới
+           (is_chosen=false).
+DoD      : Enqueue 10 image job cho Xích Bích, sinh ra 10 Asset
+           version. Retry đúng khi provider timeout.
+
+────────────────────────────────────────────────────────
+BƯỚC 24 — Screen 6: Image Gallery + character batch queue
+────────────────────────────────────────────────────────
+File     : app/ui/screens/image_gallery.py
+Depends  : bước 23, bước 12
+Làm      : Grid variation per shot. Click = set is_chosen.
+           Regenerate với prompt sửa.
+           "Batch queue" button: sort pending shot theo
+           character_batch_key + pin version, enqueue nhóm.
+DoD      : Batch queue 80 shot Xích Bích chạy overnight. Sáng
+           kiểm tra, có Asset cho mọi shot.
+
+
+═══════════════════════════════════════════════════════════════════
+PHẦN H — MOTION PIPELINE (Tuần 8-9, ~25 giờ)
+═══════════════════════════════════════════════════════════════════
+
+────────────────────────────────────────────────────────
+BƯỚC 25 — Ken Burns FFmpeg
+────────────────────────────────────────────────────────
+File     : app/motion/kenburns.py
+Depends  : bước 5, 9
+Làm      : Function render_kenburns(image_path, duration, direction,
+           zoom_start, zoom_end) → output MP4.
+           Dùng FFmpeg zoompan filter.
+DoD      : Sinh clip 5s từ ảnh, verify duration bằng ffprobe.
+
+────────────────────────────────────────────────────────
+BƯỚC 26 — VideoProvider + Wan/Veo adapters
+────────────────────────────────────────────────────────
+File     : app/providers/video/base.py, wan.py, veo.py
+Depends  : bước 22
+Làm      : Interface: generate(source_image, prompt, config)
+           → Path to output MP4.
+           Impl Wan 2.2 via ComfyUI.
+           Impl Veo 3 via Gemini API (nếu còn thời gian).
+DoD      : Sinh clip test qua Wan. Verify frame count và fps.
+
+────────────────────────────────────────────────────────
+BƯỚC 27 — Motion fill policy + fallback chain
+────────────────────────────────────────────────────────
+File     : app/motion/fill.py, fallback.py
+Depends  : bước 25, 26
+Làm      : Fill policy: extend (mặc định), split (chia sub-shot),
+           loop (chỉ khi explicit).
+           Fallback chain: generative fail 3× → sprite → Ken Burns
+           tĩnh. Không để shot rỗng.
+DoD      : Test 3 scenario: clip < voice → extend đúng; user chọn
+           split → tạo sub-shot đúng số; Wan fail → fallback đến
+           Ken Burns không lỗi.
+
+────────────────────────────────────────────────────────
+BƯỚC 28 — Screen 7: Motion Queue
+────────────────────────────────────────────────────────
+File     : app/ui/screens/motion_queue.py
+Depends  : bước 26, 27
+Làm      : Job list với progress bar, retry button, preview trước
+           khi chọn is_chosen.
+DoD      : Queue 15 motion job cho Xích Bích. Retry được job fail.
+           Chọn version dùng qua UI.
+
+
+═══════════════════════════════════════════════════════════════════
+PHẦN I — PREVIEW + EXPORT (Tuần 10-12, ~30 giờ)
+═══════════════════════════════════════════════════════════════════
+
+────────────────────────────────────────────────────────
+BƯỚC 29 — Preview player (shot / scene / full)
+────────────────────────────────────────────────────────
+File     : app/ui/screens/preview.py, app/media/concat.py
+Depends  : bước 28
+Làm      : Shot preview: HTML5 video + audio sync.
+           Scene preview: concat các shot chosen theo order.
+           Full preview: FFmpeg concat 720p proxy.
+           Shot thiếu asset → placeholder đỏ có shot_id.
+DoD      : Xem shot preview 3 shot Xích Bích. Xem scene preview
+           1 scene. Xem full preview toàn tập.
+
+────────────────────────────────────────────────────────
+BƯỚC 30 — Asset checker + Export package
+────────────────────────────────────────────────────────
+File     : app/qa/checker.py, app/export/package.py
+Depends  : bước 29
+Làm      : Checker: chạy hết rule mục 17 doc. Sinh
+           /qa/report.html + report.json.
+           Export: copy/hard-link chosen media vào /export/
+           theo naming convention. Sinh shot_manifest.csv 16 cột.
+           Sinh README_IMPORT.txt.
+DoD      : Xuất package Xích Bích. Import vào DaVinci Resolve
+           thật trên máy bạn, dựng theo manifest, chạy được đầu
+           đến cuối.
+
+
+═══════════════════════════════════════════════════════════════════
+DEPENDENCY GRAPH (tóm tắt)
+═══════════════════════════════════════════════════════════════════
+
+    [1] Setup
+     └→ [2] SQLite+WAL
+         └→ [3] Schema
+             └→ [4] Models
+                 ├→ [5] Path resolver
+                 │
+                 ├→ [6] Series ─→ [7] Episode
+                 │                   │
+                 │                   ├→ [8] Parser
+                 │                   ├→ [9] FFprobe
+                 │                   └→ [10] Voice import
+                 │
+                 ├→ [11] Reference ─┐
+                 │                   ├→ [15] UI Series/Ep
+                 ├→ [12] Batch key ─┤   [16] UI Import
+                 │                   ├→ [17] UI Shot Mgr
+                 └→ [13] Shot ──────┘   [18] UI Reference
+                       │
+                       └→ [19] Job ─→ [20] Worker ─→ [21] Recovery
+                                          │
+                                          ├→ [22] ImgProvider ─→ [23] ImgWorker ─→ [24] UI Gallery
+                                          │
+                                          ├→ [25] KenBurns ─┐
+                                          ├→ [26] VideoProvider ─→ [27] Fill/Fallback ─→ [28] UI Motion
+                                          │
+                                          └→ [29] Preview ─→ [30] Checker+Export
+
+Song song được:
+- [15-18] UI với [8-14] backend (nếu 2 dev)
+- [22, 25, 26] các provider (nếu queue infra [19-20] xong)
+- [11] Reference với [8-10] Import (đều depend chỉ vào Domain)
+
+
+═══════════════════════════════════════════════════════════════════
+QUY TẮC QUAN TRỌNG
+═══════════════════════════════════════════════════════════════════
+
+1. KHÔNG SKIP DOD.
+   Bước không pass DoD không được đánh check. Bước sau không
+   được start. Nghiêm túc.
+
+2. TEST TRƯỚC KHI QUA BƯỚC.
+   Mỗi bước phải có ít nhất unit test cho happy path + 1
+   error case. Không có test không được merge.
+
+3. COMMIT TỪNG BƯỚC.
+   1 bước = 1 branch = 1 PR = 1 merge. Không gộp 3 bước 1 PR.
+   Rollback khi cần dễ hơn.
+
+4. WEEKLY DEMO CHỈ Ở BƯỚC KẾT PHẦN.
+   Không demo dở dang giữa phần. Demo hết bước cuối phần A/B/...
+   để bạn thấy được value complete.
+
+5. BLOCKED QUÁ 1 NGÀY = ALERT.
+   Bước nào dev bị stuck quá 1 ngày công phải nhắn bạn.
+   Không được im lặng nghiên cứu 3 ngày.
+
+
+═══════════════════════════════════════════════════════════════════
+BƯỚC ĐẦU TIÊN — HÔM NAY, KHÔNG PHẢI TUẦN SAU
+═══════════════════════════════════════════════════════════════════
+
+Nói với dev lead:
+
+"Bước 1 và 2 phải xong trong 2 ngày đầu. Không cần chờ tuần sau
+mới bắt đầu. Setup repo, chọn stack, cài SQLite với WAL, chạy
+Alembic empty migration. Xong gửi mình xem repo. Đó là smoke test
+đầu tiên — nếu bước này chậm quá 3 ngày, cả timeline 12 tuần
+đang có vấn đề."
