@@ -6,9 +6,9 @@
 ## Tổng quan
 
 - Lỗi đang mở: **0**
-- Lỗi đã đóng: **41**
-- Test regression gần nhất trên `main`: **124/124 pass** (Bước 20, PR #21, merge commit `5c08022`)
-- Bước 21 trên branch `codex/step21-revalidation`: targeted **3/3 pass**, full regression **125/125 pass**.
+- Lỗi đã đóng: **42**
+- Test regression gần nhất trên `main`: **125/125 pass** (Bước 21, PR #23, merge commit `b903e31`)
+- Bước 22 trên branch `codex/step22-revalidation`: targeted **2/2 pass**, full regression **126/126 pass**.
 
 ## OBS-001 — Batch FFprobe 80 WAV từng thiếu file
 
@@ -427,6 +427,16 @@
 - **Nguyên nhân:** Query dùng `started_at <= stale_before`, bao gồm cả boundary bằng timeout.
 - **Cách sửa:** Đổi predicate thành `started_at < stale_before`; job chỉ stale khi thời gian chạy thực sự lớn hơn timeout.
 - **Regression test:** Job đúng 30 phút phải giữ `running`, attempt/worker PID không đổi; job 31 phút vẫn requeue và job hết attempt vẫn failed. Targeted 3/3, full 125/125.
+
+## BUG-042 — Cost metadata chấp nhận NaN hoặc ném lỗi thô
+
+- **Trạng thái:** Đã đóng
+- **Mức độ:** Cao, billing/metadata integrity
+- **Phát hiện:** Revalidation Bước 22 khi kiểm tra cost fields trên cả ba ImageProvider.
+- **Triệu chứng:** `cost_usd="not-a-number"` ném `ValueError` thay vì `ProviderError`; `NaN` vượt qua kiểm tra số âm và có thể đi vào Job metadata.
+- **Nguyên nhân:** Validator gọi `float()` trực tiếp và chỉ kiểm tra `< 0`, không bắt lỗi chuyển đổi hoặc kiểm tra số hữu hạn.
+- **Cách sửa:** Chuẩn hóa cost qua helper chung, bắt `TypeError`/`ValueError`, yêu cầu số hữu hạn và không âm trước khi tạo `ProviderCost`.
+- **Regression test:** Google Flow, ComfyUI và manual trả cost metadata đúng; chuỗi không phải số, `NaN` và số âm đều raise `ProviderError`. Targeted 2/2, full 126/126.
 
 ## Quy ước cập nhật
 
