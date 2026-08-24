@@ -7,8 +7,8 @@
 
 - Lỗi đang mở: **0**
 - Lỗi đã đóng: **42**
-- Test regression gần nhất trên `main`: **126/126 pass** (Bước 22, PR #24, merge commit `3a08cc2`)
-- Bước 23 trên branch `codex/step23-revalidation`: targeted **3/3 pass**, full regression **127/127 pass**.
+- Test regression gần nhất trên `main`: **127/127 pass** (Bước 23, PR #25, merge commit `0ae231d`)
+- Bước 24 trên branch `codex/step24-revalidation`: targeted **4/4 pass**, full regression **129/129 pass**.
 
 ## OBS-001 — Batch FFprobe 80 WAV từng thiếu file
 
