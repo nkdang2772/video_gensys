@@ -37,14 +37,20 @@ def test_streamlit_series_episode_import_and_shot_manager(
     app_file = Path(__file__).parents[1] / "streamlit_app.py"
     at = AppTest.from_file(str(app_file)).run(timeout=20)
     assert not at.exception
-    element_by_key(at.text_input, "series_create_name").input("Generic Series")
+    element_by_key(at.text_input, "series_create_name").input("Tam Quốc")
     element_by_key(at.button, "series_create_button").click().run(timeout=20)
     assert not at.exception
+    element_by_key(at.button, "series_open_button").click().run(timeout=20)
+    assert not at.exception
+    assert any(message.value.startswith("Opened Tam Quốc") for message in at.success)
 
     element_by_key(at.radio, "main_navigation").set_value("Episodes").run(timeout=20)
-    element_by_key(at.text_input, "episode_title").input("Pilot Episode")
+    element_by_key(at.text_input, "episode_title").input("Xích Bích")
     element_by_key(at.button, "episode_create_button").click().run(timeout=20)
     assert not at.exception
+    element_by_key(at.button, "episode_open_button").click().run(timeout=20)
+    assert not at.exception
+    assert any(message.value == "Opened 1: Xích Bích" for message in at.success)
 
     element_by_key(at.radio, "main_navigation").set_value("Shot Manager").run(timeout=20)
     assert not at.exception
@@ -105,6 +111,31 @@ def test_streamlit_series_episode_import_and_shot_manager(
         assert connection.scalar(select(func.count()).select_from(Episode)) == 1
         assert connection.scalar(select(func.count()).select_from(Shot)) == 2
         assert connection.scalar(select(func.count()).select_from(Asset)) == 2
+    verify_engine.dispose()
+
+
+def test_streamlit_series_create_reports_empty_name(tmp_path: Path, monkeypatch) -> None:
+    with warnings.catch_warnings():
+        warnings.simplefilter("ignore", DeprecationWarning)
+        from streamlit.testing.v1 import AppTest
+
+    database = tmp_path / "ui_error.db"
+    database_url = f"sqlite:///{database.as_posix()}"
+    engine = create_db_engine(database_url)
+    Base.metadata.create_all(engine)
+    engine.dispose()
+    monkeypatch.setenv("VIDEO_GENSYSTEM_DATABASE_URL", database_url)
+    monkeypatch.setenv("VIDEO_GENSYSTEM_LIBRARY_ROOT", str(tmp_path / "library"))
+
+    app_file = Path(__file__).parents[1] / "streamlit_app.py"
+    at = AppTest.from_file(str(app_file)).run(timeout=20)
+    element_by_key(at.button, "series_create_button").click().run(timeout=20)
+
+    assert not at.exception
+    assert any("Series name cannot be empty" in message.value for message in at.error)
+    verify_engine = create_db_engine(database_url)
+    with verify_engine.connect() as connection:
+        assert connection.scalar(select(func.count()).select_from(Series)) == 0
     verify_engine.dispose()
 
 
