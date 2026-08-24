@@ -5,7 +5,7 @@
 **Phiên bản ứng dụng:** `0.1.0`  
 **Giai đoạn hiện tại:** Audit/revalidation theo DoD nghiêm ngặt
 **Gate chính thức:** **Bước 1 — NOT PASS**
-**Trạng thái:** Code tồn tại đến Bước 30 và regression 93/93 pass, nhưng không bước nào sau Bước 1 được đánh check chính thức cho đến khi CI thật và test gap của Bước 1 được đóng. Xem `status/dod_audit.md`.
+**Trạng thái:** Code tồn tại đến Bước 30 và regression 95/95 pass. Error-case local của Bước 1 đã được đóng, nhưng không bước nào sau Bước 1 được đánh check chính thức cho đến khi có Git remote/PR và CI cloud xanh. Xem `status/dod_audit.md`.
 
 **Nguyên tắc phạm vi:** hệ thống là nền tảng sản xuất hình/voice/motion tổng quát cho mọi series. “Xích Bích”, “Tam Quốc” và các tên nhân vật lịch sử chỉ là test fixture/ví dụ acceptance, không phải domain được hard-code.
 
@@ -18,11 +18,12 @@
 - `python -m app --version`: PASS, trả `0.1.0`.
 - `pip check`: PASS, không có dependency hỏng.
 - `alembic upgrade head`: PASS trên database local.
-- Full suite: PASS, **93/93 test** trong 20.68 giây.
+- Full suite trước revalidation Bước 1: PASS, **93/93 test** trong 20.68 giây.
 - SQLite: database có WAL và đủ 10 bảng nghiệp vụ. `tests/test_db.py` trong full suite xác nhận mọi connection do app mở đặt `busy_timeout=5000`; raw SQLite CLI mở connection riêng không áp dụng listener của app.
 - Bước 30 artifact: QA PASS, 0 error/0 warning; manifest `davinci_resolve` 24 FPS; FFprobe xác nhận H.264/AAC, 1280×720, 24 FPS, 72 frame, audio 48 kHz/2 kênh, duration 3.021333 giây.
 - **FAIL mới:** `alembic check` phát hiện 17 CHECK constraints có trong migration/database nhưng thiếu trong ORM metadata. Database không bị xóa constraint; lỗi nằm ở khả năng autogenerate/schema drift. Theo dõi tại `BUG-031`.
-- Gate chính thức vẫn là **Bước 1 — NOT PASS** do chưa có Git remote/CI run và thiếu error-case cho version CLI. Không dùng kết quả các bước sau để vượt gate.
+- Revalidation Bước 1 trên branch `codex/step1-revalidation`: thêm happy path gọi CLI thật và error-case option không hợp lệ; targeted 3/3 pass. Chuỗi CI local gồm editable install, version, FFmpeg, dependency check, migration và full suite đều pass; baseline mới **95/95 test** trong 21.46 giây.
+- Gate chính thức vẫn là **Bước 1 — NOT PASS** vì máy chưa có Git remote, GitHub CLI hoặc CI cloud run. Error-case local đã được đóng; không dùng kết quả các bước sau để vượt gate.
 
 ## Tech stack đã chốt
 
@@ -296,7 +297,7 @@
 
 ```text
 python -m app --version: 0.1.0
-pytest: 93 passed
+pytest: 95 passed
 alembic upgrade head: PASS
 alembic check: FAIL — 17 CHECK constraints missing from ORM metadata (BUG-031)
 PRAGMA journal_mode: wal
@@ -327,6 +328,6 @@ DaVinci FPS validation happy/error và live Resolve 24 FPS.
 
 ## Bước tiếp theo
 
-- Quay về gate Bước 1: cấu hình Git remote, bổ sung error-case và chạy CI thật; sau đó revalidate tuần tự theo `status/dod_audit.md`. Không dùng technical/live PASS của Bước 30 để vượt dependency.
+- Hoàn tất gate Bước 1 bằng cách cấu hình Git remote, tạo PR và chạy CI cloud thật; error-case local đã pass. Sau đó revalidate tuần tự theo `status/dod_audit.md`. Không dùng technical/live PASS của Bước 30 để vượt dependency.
 - Khi có corpus production, chạy lại end-to-end ở kích thước tập thật; fixture hiện tại chứng minh workflow tổng quát, không hard-code Xích Bích.
 - Wan live acceptance vẫn cần ComfyUI đang chạy, workflow Wan 2.2 API JSON và model tương thích; Veo live là optional và có thể phát sinh phí.

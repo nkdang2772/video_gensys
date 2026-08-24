@@ -6,7 +6,7 @@
 
 ## Kết luận gate
 
-- **Gate chính thức hiện tại: Bước 1 — NOT PASS.** CI workflow đã được viết nhưng chưa có remote/CI run để chứng minh “Commit chạy CI”. Bước 1 chỉ có test version happy path, chưa có error-case test theo quy tắc mới.
+- **Gate chính thức hiện tại: Bước 1 — NOT PASS.** CI workflow đã được viết và local CI pass, nhưng chưa có remote/PR/CI cloud run để chứng minh “Commit chạy CI”. Happy path CLI thật và error-case option không hợp lệ đã được bổ sung trên branch `codex/step1-revalidation`.
 - Vì vậy không bước nào sau Bước 1 được đánh dấu check chính thức cho đến khi gate này được đóng và các bước được revalidate theo thứ tự dependency.
 - Code và test đã tồn tại tới Bước 30 là bằng chứng kỹ thuật có thể tái sử dụng khi revalidate; chúng không tự động biến thành DoD PASS.
 - Không rewrite lịch sử Git để giả lập branch/PR đã không tồn tại. Các sai lệch lịch sử được giữ nguyên và công khai trong audit này.
@@ -15,7 +15,7 @@
 
 | Bước | Bằng chứng hiện có | Khoảng trống nghiêm ngặt | Trạng thái chính thức |
 |---:|---|---|---|
-| 1 | Repo, stack, version CLI, workflow CI | Không remote/CI run; thiếu error-case test | **NOT PASS — current gate** |
+| 1 | Repo, stack, version CLI; happy/error CLI test; workflow và local CI 95/95 pass | Không có Git remote/PR/CI cloud run | **NOT PASS — current gate** |
 | 2 | Alembic chạy local; WAL/busy timeout test | Thiếu error-case test riêng; dependency 1 chưa pass | **NOT CHECKED** |
 | 3 | Migration 10 bảng; raw SQL insert/constraint tests | Dependency upstream chưa pass | **NOT CHECKED** |
 | 4 | CRUD mọi model; invariant happy/error | Dependency upstream chưa pass; `alembic check` phát hiện 17 CHECK constraints thiếu trong ORM metadata (`BUG-031`) | **NOT CHECKED** |
@@ -48,9 +48,9 @@
 
 ## Audit test policy
 
-- Full suite hiện tại: **93 passed**; đây là regression baseline, không phải bằng chứng rằng 30/30 DoD đã pass.
+- Full suite hiện tại: **95 passed**; đây là regression baseline, không phải bằng chứng rằng 30/30 DoD đã pass.
 - Recheck ngày 2026-08-24: version, dependency, migration upgrade, full suite và artifact Bước 30 pass; `alembic check` fail do ORM metadata không khai báo 17 CHECK constraints đã có trong migration/database. Đây là gap thật chưa được full suite bắt trước đó.
-- Các bước có khoảng trống error-case rõ ràng: **1, 2, 14, 15**.
+- Error-case Bước 1 đã đóng. Các bước còn khoảng trống error-case rõ ràng: **2, 14, 15**.
 - Các màn hình chưa có acceptance đúng thao tác DoD: **17, 18, 24, 28**; Bước 16 còn thiếu UI error path.
 - Live provider còn thiếu: **22/ComfyUI image** và **26/Wan ComfyUI**.
 - Acceptance external app cho Bước 30 đã PASS kỹ thuật trong Resolve thật với package/proxy 24 FPS; vẫn không được check chính thức trước các dependency upstream.
@@ -58,6 +58,8 @@
 ## Audit Git/PR
 
 Repository tại thời điểm audit chỉ có branch `main`, không có Git remote và không có bằng chứng PR/CI cloud.
+
+Revalidation hiện đã dùng branch riêng `codex/step1-revalidation`, nhưng máy vẫn không có Git remote và không cài GitHub CLI; vì vậy chưa thể tạo PR hoặc thu CI cloud evidence.
 
 | Commit | Các bước bị gộp |
 |---|---|
@@ -81,7 +83,7 @@ Kết luận: quy tắc **1 bước = 1 branch = 1 PR = 1 merge** đã không đ
 
 ## Thứ tự phục hồi hợp lệ
 
-1. Hoàn tất Bước 1: cấu hình remote, chạy CI thật, bổ sung error-case test; chỉ check khi CI xanh.
+1. Hoàn tất Bước 1: cấu hình remote, tạo PR và chạy CI cloud thật; error-case đã pass local, chỉ check chính thức khi CI xanh.
 2. Revalidate Bước 2 theo branch riêng và bổ sung error case; sau đó tuần tự 3–13.
 3. Bổ sung test gaps 14–18; không dùng service test để thay thế UI DoD.
 4. Revalidate 19–21.
