@@ -6,9 +6,9 @@
 ## Tổng quan
 
 - Lỗi đang mở: **0**
-- Lỗi đã đóng: **40**
+- Lỗi đã đóng: **41**
 - Test regression gần nhất trên `main`: **124/124 pass** (Bước 20, PR #21, merge commit `5c08022`)
-- Gate chính thức: **Bước 1–20 PASS**; Bước 21 chưa bắt đầu revalidation.
+- Bước 21 trên branch `codex/step21-revalidation`: targeted **3/3 pass**, full regression **125/125 pass**.
 
 ## OBS-001 — Batch FFprobe 80 WAV từng thiếu file
 
@@ -417,6 +417,16 @@
 - **Nguyên nhân:** UI gọi `bulk_update_shots()` với danh sách rỗng; service chủ ý trả danh sách rỗng cho no-op nhưng màn hình không validate ý định người dùng.
 - **Cách sửa:** Shot Manager từ chối danh sách chọn rỗng trước khi mở transaction và hiển thị lỗi `Select at least one shot for bulk assignment.`
 - **Regression test:** AppTest tạo Episode có Shot, mở Shot Manager, nhấn bulk apply khi không chọn shot và xác nhận lỗi; targeted 13/13, full 120/120.
+
+## BUG-041 — Job đúng bằng stale timeout bị recovery sớm
+
+- **Trạng thái:** Đã đóng
+- **Mức độ:** Trung bình, queue lifecycle
+- **Phát hiện:** Revalidation Bước 21 đối chiếu điều kiện `running > timeout` trong DoD.
+- **Triệu chứng:** Job có `started_at` đúng 30 phút trước thời điểm recovery bị đánh `stale`, tăng attempt và requeue dù chưa vượt timeout.
+- **Nguyên nhân:** Query dùng `started_at <= stale_before`, bao gồm cả boundary bằng timeout.
+- **Cách sửa:** Đổi predicate thành `started_at < stale_before`; job chỉ stale khi thời gian chạy thực sự lớn hơn timeout.
+- **Regression test:** Job đúng 30 phút phải giữ `running`, attempt/worker PID không đổi; job 31 phút vẫn requeue và job hết attempt vẫn failed. Targeted 3/3, full 125/125.
 
 ## Quy ước cập nhật
 
