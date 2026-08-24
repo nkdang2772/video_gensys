@@ -263,7 +263,8 @@
 - Yêu cầu Bước 30 ghi 16 cột trong khi doc mục 18 liệt kê 17 trường. Quyết định: CSV giữ đúng 16 trường dựng timeline, còn `notes` nằm trong `project_manifest.json`.
 - Rebuild export không xóa package cũ mà đổi tên thành `export_backup_<timestamp>` trước khi tạo package mới.
 - Acceptance artifact được giữ tại `live_test/step29_30_acceptance/.../generic-preview-episode` (ignored khỏi Git).
-- Không tìm thấy DaVinci Resolve trong registry, Start Menu hoặc các path cài phổ biến trên C:/D:; vì vậy chưa thể xác nhận thao tác import/timeline bằng ứng dụng Resolve thật trên máy này.
+- DaVinci Resolve 21.0.4 đã được cài tại `D:\davinci\Resolve.exe`. Diagnostic project thật `VideoGenSystem Step30 Diagnostic` đã import đủ 3 PNG + 3 WAV của export package, import `full_preview_720p.mp4`, tạo `Timeline 1`, phát hết chuỗi xanh–cam–tím 3 giây và lưu project.
+- Resolve nhận metadata proxy là 1280×720, 12 FPS, duration 3 giây; tuy nhiên Resolve 21 không cho chọn timeline 12 FPS trong project settings trên máy này. Timeline diagnostic phải dùng 24 FPS, nên đây chỉ là **partial live acceptance**, chưa đủ để đánh Bước 30 PASS “dựng theo manifest”. Xem `BUG-030`.
 
 ### Giới hạn live provider
 
@@ -309,6 +310,6 @@ preview shot/scene/full với placeholder/cache, QA HTML/JSON, export 16 cột v
 
 ## Bước tiếp theo
 
-- Cài/mở DaVinci Resolve rồi import acceptance package hoặc corpus production để hoàn tất DoD GUI còn lại của Bước 30.
+- Sửa export/manifest để dùng FPS mà DaVinci Resolve hỗ trợ (khuyến nghị 24 FPS), regenerate acceptance package rồi lặp lại import/timeline/playback trước khi xét Bước 30 PASS.
 - Khi có corpus production, chạy lại end-to-end ở kích thước tập thật; fixture hiện tại chứng minh workflow tổng quát, không hard-code Xích Bích.
 - Wan live acceptance vẫn cần ComfyUI đang chạy, workflow Wan 2.2 API JSON và model tương thích; Veo live là optional và có thể phát sinh phí.

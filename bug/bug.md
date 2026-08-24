@@ -300,6 +300,17 @@
 - **Cách sửa:** Hạ gate chính thức về Bước 1, thêm `status/dod_audit.md` với ma trận 1–30 và ghi rõ mọi khoảng trống/Git deviation; không rewrite lịch sử để tạo bằng chứng giả.
 - **Regression kiểm soát:** Mọi cập nhật status sau audit phải ghi riêng `implementation evidence` và `official DoD status`; chỉ chuyển PASS khi có artifact/test/live evidence đúng DoD và dependency đã pass.
 
+## BUG-030 — Export manifest dùng FPS DaVinci Resolve không hỗ trợ
+
+- **Trạng thái:** Mở
+- **Mức độ:** Cao, chặn live DoD Bước 30
+- **Phát hiện:** Live acceptance ngày 2026-08-24 bằng DaVinci Resolve 21.0.4 trên project `VideoGenSystem Step30 Diagnostic`.
+- **Triệu chứng:** Package/proxy khai báo 1280×720, 12 FPS, 3 giây. Resolve import đủ 3 PNG + 3 WAV và phát proxy đúng chuỗi xanh–cam–tím, nhưng project settings không cho timeline 12 FPS; timeline diagnostic buộc dùng 24 FPS.
+- **Nguyên nhân gốc:** Episode/preview/export cho phép FPS tùy ý (fixture dùng 12), trong khi contract export chưa giới hạn hoặc chuyển đổi sang tập frame rate được DaVinci Resolve hỗ trợ.
+- **Thay đổi đã thực hiện:** Chưa sửa code trong lượt diagnostic; ghi nhận chính xác kết quả live và giữ Bước 30 ở trạng thái NOT PASS.
+- **Cách sửa dự kiến:** Validate/normalize export FPS theo profile editor, mặc định DaVinci 24 FPS; regenerate proxy/manifest/media với cùng FPS rồi chạy lại live acceptance.
+- **Regression test cần thêm:** Happy path export 24 FPS có proxy/manifest đồng nhất; error case từ chối hoặc normalize Episode 12 FPS một cách explicit; live Resolve import/timeline/playback tại 24 FPS.
+
 ## Quy ước cập nhật
 
 Mỗi lỗi mới cần ghi:
