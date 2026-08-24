@@ -16,6 +16,7 @@ from sqlalchemy.orm import Session
 from app.models import Asset, Episode, Shot
 from app.paths import resolve
 from app.qa.checker import QaReport, run_asset_checks
+from app.export.otio_timeline import OtioExportResult, TimelineEntry, export_otio_timeline
 
 MANIFEST_COLUMNS = (
     "series_slug", "episode_slug", "scene_id", "shot_id", "order_index", "speaker",
@@ -31,6 +32,9 @@ class ExportResult:
     manifest_path: Path
     project_manifest_path: Path
     readme_path: Path
+    timeline_path: Path
+    timeline_bundle_path: Path
+    transition_count: int
     media_file_count: int
     shot_count: int
     qa_report: QaReport
@@ -65,6 +69,7 @@ def export_episode_package(
     ffprobe_path: str | Path | None = None,
     allow_qa_errors: bool = False,
     force: bool = False,
+    transition_duration_sec: float = 0.25,
 ) -> ExportResult:
     episode = session.get(Episode, episode_id)
     if episode is None:
@@ -90,6 +95,7 @@ def export_episode_package(
     for folder in folders.values():
         folder.mkdir(exist_ok=True)
     rows: list[dict[str, object]] = []
+    timeline_entries: list[TimelineEntry] = []
     notes: dict[str, str] = {}
     count = 0
     try:
@@ -101,6 +107,11 @@ def export_episode_package(
             count += sum(bool(item) for item in (audio, image, motion, subtitle))
             if shot.notes:
                 notes[shot.shot_id] = shot.notes
+            duration = (
+                float(shot.audio_duration_sec or 0)
+                + float(shot.head_padding_sec or 0)
+                + float(shot.tail_padding_sec or 0)
+            )
             rows.append({
                 "series_slug": episode.series.slug,
                 "episode_slug": episode.slug,
@@ -111,7 +122,7 @@ def export_episode_package(
                 "audio_path": audio,
                 "image_path": image,
                 "motion_path": motion,
-                "effective_duration_sec": f"{float(shot.audio_duration_sec or 0) + float(shot.head_padding_sec or 0) + float(shot.tail_padding_sec or 0):.6f}",
+                "effective_duration_sec": f"{duration:.6f}",
                 "motion_intent": shot.motion_intent,
                 "motion_provider": shot.motion_provider,
                 "hero_flag": "true" if shot.hero_flag else "false",
@@ -119,11 +130,47 @@ def export_episode_package(
                 "motion_fill_policy": shot.motion_fill_policy,
                 "subtitle_path": subtitle,
             })
+            visual = motion or image
+            timeline_entries.append(
+                TimelineEntry(
+                    shot_id=shot.shot_id,
+                    visual_path=(destination / visual) if visual else None,
+                    visual_is_image=not bool(motion),
+                    audio_path=(destination / audio) if audio else None,
+                    duration_sec=duration,
+                    audio_duration_sec=float(shot.audio_duration_sec or 0),
+                    head_padding_sec=float(shot.head_padding_sec or 0),
+                    tail_padding_sec=float(shot.tail_padding_sec or 0),
+                    metadata={
+                        "scene": shot.scene.scene_number if shot.scene else None,
+                        "order_index": shot.order_index,
+                        "speaker": shot.speaker or "",
+                        "motion_intent": shot.motion_intent,
+                        "notes": shot.notes or "",
+                    },
+                )
+            )
         manifest = destination / "shot_manifest.csv"
         with manifest.open("w", encoding="utf-8-sig", newline="") as handle:
             writer = csv.DictWriter(handle, fieldnames=MANIFEST_COLUMNS)
             writer.writeheader()
             writer.writerows(rows)
+        try:
+            width_text, height_text = episode.effective_resolution.lower().split("x", 1)
+            width, height = int(width_text), int(height_text)
+        except (AttributeError, TypeError, ValueError) as exc:
+            raise ValueError(
+                f"Invalid Episode resolution for OTIO: {episode.effective_resolution!r}"
+            ) from exc
+        otio_result: OtioExportResult = export_otio_timeline(
+            destination,
+            timeline_entries,
+            fps=float(episode.effective_fps),
+            width=width,
+            height=height,
+            transition_duration_sec=transition_duration_sec,
+            timeline_name=f"{episode.series.name} — {episode.title}",
+        )
         project_manifest = destination / "project_manifest.json"
         project_manifest.write_text(json.dumps({
             "schema_version": 1,
@@ -133,16 +180,24 @@ def export_episode_package(
             "shot_count": len(shots),
             "shot_notes": notes,
             "qa": {"passed": qa_report.passed, "errors": qa_report.error_count, "warnings": qa_report.warning_count},
+            "timeline": {
+                "otio": otio_result.timeline_path.name,
+                "otioz": otio_result.bundle_path.name,
+                "duration_sec": otio_result.duration_sec,
+                "transition": "cross_dissolve" if otio_result.transition_count else "cut",
+                "transition_count": otio_result.transition_count,
+                "transition_duration_sec": float(transition_duration_sec),
+            },
             "manifest_sha256": hashlib.sha256(manifest.read_bytes()).hexdigest(),
         }, ensure_ascii=False, indent=2), encoding="utf-8")
         readme = destination / "README_IMPORT.txt"
         readme.write_text(
             "VIDEO GENSYSTEM — DAVINCI RESOLVE IMPORT\n\n"
-            "1. Tạo project mới và đặt timeline resolution/FPS theo project_manifest.json.\n"
-            "2. Import các folder audio, images, clips và subtitles vào Media Pool.\n"
-            "3. Mở shot_manifest.csv, sort theo order_index; đặt motion_path nếu có, nếu không dùng image_path.\n"
-            "4. Đặt audio_path cùng shot lên timeline và trim theo effective_duration_sec.\n"
-            "5. Đối chiếu shot_id trên clip/audio trước khi dựng tiếp.\n"
+            "1. Trong DaVinci Resolve Free chọn File > Import > Timeline.\n"
+            "2. Chọn timeline.otioz; package này chứa cả timeline và media để Resolve tự liên kết.\n"
+            "3. Bật tùy chọn dùng resolution/FPS của timeline khi hộp thoại import xuất hiện.\n"
+            "4. Timeline đã xếp sẵn image/motion ưu tiên, voice, padding và cross-dissolve đơn giản.\n"
+            "5. Có thể sửa mọi clip/chuyển cảnh trong Edit page; timeline.otio là bản metadata để debug/relink.\n"
             "6. Đọc qa/report.html tại episode root; QA nội dung, consistency, flicker, nhịp, music/SFX vẫn phải làm thủ công.\n\n"
             "CSV có đúng 16 cột dựng timeline. Notes nằm trong project_manifest.json để giải quyết chênh lệch 16/17 trường của đặc tả.\n",
             encoding="utf-8",
@@ -150,4 +205,15 @@ def export_episode_package(
     except Exception:
         (destination / "EXPORT_INCOMPLETE.txt").write_text("Export failed before completion.", encoding="utf-8")
         raise
-    return ExportResult(destination, manifest, project_manifest, readme, count, len(shots), qa_report)
+    return ExportResult(
+        destination,
+        manifest,
+        project_manifest,
+        readme,
+        otio_result.timeline_path,
+        otio_result.bundle_path,
+        otio_result.transition_count,
+        count,
+        len(shots),
+        qa_report,
+    )

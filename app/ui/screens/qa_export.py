@@ -39,13 +39,29 @@ def render(session_factory: sessionmaker[Session], library_root: Path) -> None:
     st.subheader("DaVinci Resolve package")
     allow_errors = st.checkbox("Allow export with QA errors", value=False)
     archive_previous = st.checkbox("Archive previous export before rebuilding", value=False)
+    transition_duration = st.number_input(
+        "Simple cross-dissolve (seconds; 0 = cuts)",
+        min_value=0.0,
+        max_value=5.0,
+        value=0.25,
+        step=0.05,
+        key="export_transition_duration",
+    )
     if st.button("Build export package"):
         try:
             with session_factory() as session:
                 result = export_episode_package(
-                    session, episode_id, allow_qa_errors=allow_errors, force=archive_previous
+                    session,
+                    episode_id,
+                    allow_qa_errors=allow_errors,
+                    force=archive_previous,
+                    transition_duration_sec=transition_duration,
                 )
             st.success(f"Exported {result.shot_count} shots / {result.media_file_count} files")
             st.code(str(result.export_path))
+            st.caption(
+                f"Resolve Free: import {result.timeline_bundle_path.name} "
+                f"({result.transition_count} simple transition(s))"
+            )
         except (ValueError, OSError, RuntimeError) as exc:
             st.error(str(exc))

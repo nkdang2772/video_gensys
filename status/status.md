@@ -1,11 +1,13 @@
 # Trạng thái dự án Video GenSystem
 
-**Cập nhật:** 2026-08-24  
+**Cập nhật:** 2026-08-25
 **Thư mục dự án:** `D:\video_gensystem`  
 **Phiên bản ứng dụng:** `0.1.0`  
 **Giai đoạn hiện tại:** Audit/revalidation tuần tự theo DoD nghiêm ngặt
 **Gate chính thức:** **Bước 1–30 — PASS**
 **Trạng thái:** Toàn bộ 30 bước đã hoàn tất revalidation tuần tự, mỗi bước có branch/PR riêng, test happy/error, GitHub CI 2/2 và merge vào `main`.
+
+**Tính năng sau Bước 30 — Auto timeline OTIO/OTIOZ:** triển khai trên branch `codex/otio-auto-timeline`. Export package sinh đồng thời `timeline.otio` và `timeline.otioz`, tự xếp visual ưu tiên motion rồi image trên V1, voice/padding trên A1 và cross-dissolve đơn giản có thể chỉnh từ UI (0 giây = hard cut). Live acceptance bằng DaVinci Resolve Free 21.0.4 đã import gói OTIOZ 3 shot thành timeline 3 giây, đủ 3 visual + 3 voice + 2 transition; scrub hiển thị đúng cả ba visual và Edit page cho phép chỉnh clip/transition. Focused **6/6 pass**, full regression local **138/138 pass**, `pip check` sạch, Alembic upgrade/check sạch trên database acceptance.
 
 **Nguyên tắc phạm vi:** hệ thống là nền tảng sản xuất hình/voice/motion tổng quát cho mọi series. “Xích Bích”, “Tam Quốc” và các tên nhân vật lịch sử chỉ là test fixture/ví dụ acceptance, không phải domain được hard-code.
 

@@ -8,6 +8,7 @@ dependencies:
   - ffmpeg>=6
   - matplotlib>=3.8,<4
   - numpy>=1.26,<3
+  - opentimelineio>=0.17,<0.19
   - pillow>=10,<12
   - sqlalchemy>=2.0,<3
   - alembic>=1.13,<2

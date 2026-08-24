@@ -1,14 +1,20 @@
 # Nhật ký lỗi Video GenSystem
 
-**Cập nhật:** 2026-08-24  
+**Cập nhật:** 2026-08-25
 **Phạm vi:** Toàn dự án
 
 ## Tổng quan
 
 - Lỗi đang mở: **0**
 - Lỗi đã đóng: **46**
-- Test regression gần nhất trên `main`: **137/137 pass** (Bước 30, PR #33, merge commit `4c98662`)
+- Test regression gần nhất trên feature branch `codex/otio-auto-timeline`: **138/138 pass**; baseline `main` vẫn là **137/137 pass** (Bước 30, PR #33, merge commit `4c98662`)
 - Gate chính thức: **Bước 1–30 PASS**.
+
+## OBS-002 — Thumbnail ảnh OTIOZ trong Media Pool chậm cập nhật
+
+- **Trạng thái:** Đã đối chứng, không phải lỗi chức năng của package.
+- **Phát hiện:** Sau khi Resolve Free 21.0.4 import `timeline.otioz`, thumbnail ba PNG fixture tạm hiển thị chữ `Media Offline` dù timeline đã được tạo.
+- **Đối chứng:** Scrub tại shot 1/2/3 hiển thị đúng ba visual xanh/cam/tím; V1 có 3 clip và 2 cross-dissolve, A1 có 3 voice; Edit page mở và chỉnh được các item. Media được Resolve tự liên kết từ bundle, hiện tượng chỉ ở thumbnail cache của fixture.
 
 ## OBS-001 — Batch FFprobe 80 WAV từng thiếu file
 
