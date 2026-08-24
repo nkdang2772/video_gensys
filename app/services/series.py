@@ -102,17 +102,21 @@ def update_series(session: Session, series_id: int, **changes: Any) -> Series:
         raise ValueError(f"Unsupported Series fields: {', '.join(sorted(unknown))}")
     series = get_series_by_id(session, series_id)
 
-    if "slug" in changes:
-        clean_slug = slugify(str(changes.pop("slug")))
-        if _slug_exists(session, clean_slug, excluding_id=series.id):
-            raise DuplicateSeriesSlugError(f"Series slug already exists: {clean_slug}")
-        series.slug = clean_slug
-    if "name" in changes:
-        clean_name = str(changes["name"]).strip()
+    validated_changes = dict(changes)
+    clean_slug: str | None = None
+    if "name" in validated_changes:
+        clean_name = str(validated_changes["name"]).strip()
         if not clean_name:
             raise ValueError("Series name cannot be empty")
-        changes["name"] = clean_name
-    for field, value in changes.items():
+        validated_changes["name"] = clean_name
+    if "slug" in validated_changes:
+        clean_slug = slugify(str(validated_changes.pop("slug")))
+        if _slug_exists(session, clean_slug, excluding_id=series.id):
+            raise DuplicateSeriesSlugError(f"Series slug already exists: {clean_slug}")
+
+    if clean_slug is not None:
+        series.slug = clean_slug
+    for field, value in validated_changes.items():
         setattr(series, field, value)
     try:
         session.flush()
@@ -126,4 +130,3 @@ def soft_delete_series(session: Session, series_id: int) -> Series:
     series.deleted_at = utc_now()
     session.flush()
     return series
-
