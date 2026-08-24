@@ -4,8 +4,8 @@
 **Thư mục dự án:** `D:\video_gensystem`  
 **Phiên bản ứng dụng:** `0.1.0`  
 **Giai đoạn hiện tại:** Audit/revalidation tuần tự theo DoD nghiêm ngặt
-**Gate chính thức:** **Bước 1–14 — PASS; Bước 15 — đang revalidate**
-**Trạng thái:** Code lịch sử tồn tại đến Bước 30, nhưng chỉ Bước 1–14 đã đủ branch/PR/CI/merge để được đánh PASS chính thức. Bước 15 đã đạt test local nhưng chưa được đánh PASS trước khi có PR, CI xanh và merge; Bước 16 chưa được bắt đầu.
+**Gate chính thức:** **Bước 1–15 — PASS; Bước 16 — chưa bắt đầu**
+**Trạng thái:** Code lịch sử tồn tại đến Bước 30, nhưng chỉ Bước 1–15 đã đủ branch/PR/CI/merge để được đánh PASS chính thức. Bước 16 chưa được bắt đầu.
 
 **Nguyên tắc phạm vi:** hệ thống là nền tảng sản xuất hình/voice/motion tổng quát cho mọi series. “Xích Bích”, “Tam Quốc” và các tên nhân vật lịch sử chỉ là test fixture/ví dụ acceptance, không phải domain được hard-code.
 
@@ -41,8 +41,9 @@
 - Bằng chứng Bước 13: create/update, invariant primary character, atomic update và bulk update **20 shot** regenerate batch key; BUG-038 đã đóng; targeted **6/6 pass**, full CI **109/109 pass**.
 - **Bước 14 PASS:** branch `codex/step14-revalidation`, PR [#14](https://github.com/nkdang2772/video_gensys/pull/14), 2/2 GitHub checks xanh và merge commit `62950f9` trên `main`.
 - Bằng chứng Bước 14: waveform PNG, PCM 8/16/24/32-bit, silence suggestion, source no-overwrite và WAV thật 5 phút cắt thành 10 đoạn với drift ≤0,1 giây; targeted **8/8 pass**, full CI **114/114 pass**.
-- **Bước 15 đang revalidate** trên branch `codex/step15-revalidation`: Streamlit AppTest list/create/open Series và Episode bằng fixture “Tam Quốc”/“Xích Bích”; tên Series rỗng hiển thị lỗi và không tạo record. Targeted **3/3 pass**, full regression **115/115 pass**; PR/CI/merge còn chờ.
-- Các mô tả “đã hoàn thành” bên dưới là inventory implementation lịch sử, không phải dấu check DoD cho Bước 15–30.
+- **Bước 15 PASS:** branch `codex/step15-revalidation`, PR [#15](https://github.com/nkdang2772/video_gensys/pull/15), 2/2 GitHub checks xanh và merge commit `641da86` trên `main`.
+- Bằng chứng Bước 15: Streamlit AppTest list/create/open Series và Episode bằng fixture “Tam Quốc”/“Xích Bích”; tên Series rỗng hiển thị lỗi và không tạo record; targeted **3/3 pass**, full CI **115/115 pass**.
+- Các mô tả “đã hoàn thành” bên dưới là inventory implementation lịch sử, không phải dấu check DoD cho Bước 16–30.
 
 ## Tech stack đã chốt
 
