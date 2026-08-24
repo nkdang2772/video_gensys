@@ -6,8 +6,8 @@
 ## Tổng quan
 
 - Lỗi đang mở: **0**
-- Lỗi đã đóng: **25**
-- Test regression hiện tại: **82/82 pass**
+- Lỗi đã đóng: **26**
+- Test regression hiện tại: **89/89 pass**
 
 ## BUG-001 — SQLAlchemy không suy luận được kiểu `created_at`
 
@@ -259,6 +259,16 @@
 - **Cách sửa:** Thêm cấu hình/env `VIDEO_GENSYSTEM_FLOW_DOWNLOADS_ROOT`; provider chỉ dò các suffix ảnh cho phép trong Downloads root đã resolve, chuyển JPEG/WebP sang PNG bằng Pillow và vẫn kiểm tra path containment/no-overwrite.
 - **Regression test:** Extension simulator ghi JPEG với đuôi `.jpg` dù task yêu cầu `.png`; provider tìm đúng file, tạo PNG hợp lệ và cleanup source. Full suite 82/82 pass.
 - **Live verification:** Artifact `live_test/google_flow_live.png` là PNG 1376×768, SHA-256 `70ab37b201b8a8ec793bf7a67c06c75d642984ce3469dc573bd133cfabbf4a87`.
+
+## BUG-026 — Test chọn nhầm FFmpeg không có encoder H.264
+
+- **Trạng thái:** Đã đóng
+- **Mức độ:** Cao, chặn Bước 25–27
+- **Phát hiện:** Lượt test Ken Burns media thật đầu tiên.
+- **Triệu chứng:** Sáu motion test fail với `Unknown encoder 'libx264'` dù executable FFmpeg vẫn chạy được.
+- **Nguyên nhân:** Fixture chọn FFmpeg đầu tiên trong một Conda environment cũ (`speed_est`), binary đó không được build với libx264.
+- **Cách sửa:** Tạo environment chuẩn `video-gensystem` từ `environment.yml`; fixture ưu tiên environment này và chỉ nhận FFmpeg khi danh sách encoder có `libx264`.
+- **Regression test:** Ken Burns 5 giây tạo đúng 150 frame/30 FPS ở acceptance thật; motion suite 7/7 và full suite 89/89 pass.
 
 ## Quy ước cập nhật
 

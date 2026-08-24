@@ -13,6 +13,7 @@ PAGES = {
     "Shot Manager": "app.ui.screens.shot_manager",
     "References": "app.ui.screens.reference",
     "Image Gallery": "app.ui.screens.image_gallery",
+    "Motion Queue": "app.ui.screens.motion_queue",
 }
 
 
@@ -29,7 +30,7 @@ def main() -> None:
     module = importlib.import_module(PAGES[page])
     session_factory = get_session_factory()
     library_root = get_library_root()
-    if page in {"Episodes", "References", "Image Gallery"}:
+    if page in {"Episodes", "References", "Image Gallery", "Motion Queue"}:
         module.render(session_factory, library_root)
     else:
         module.render(session_factory)

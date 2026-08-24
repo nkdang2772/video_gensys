@@ -3,8 +3,8 @@
 **Cập nhật:** 2026-08-24  
 **Thư mục dự án:** `D:\video_gensystem`  
 **Phiên bản ứng dụng:** `0.1.0`  
-**Giai đoạn hiện tại:** Phần G — Image generation
-**Trạng thái:** Bước 22–24 hoàn thành về code/test; Google Flow live đã xác nhận, ComfyUI live còn chờ server/model
+**Giai đoạn hiện tại:** Phần H — Motion pipeline
+**Trạng thái:** Bước 25–28 hoàn thành về code/test; Ken Burns chạy media thật, Wan/Veo live còn phụ thuộc service/model
 
 **Nguyên tắc phạm vi:** hệ thống là nền tảng sản xuất hình/voice/motion tổng quát cho mọi series. “Xích Bích”, “Tam Quốc” và các tên nhân vật lịch sử chỉ là test fixture/ví dụ acceptance, không phải domain được hard-code.
 
@@ -21,6 +21,7 @@
 - Pytest cho unit/integration test nền tảng.
 - NumPy và Matplotlib cho xử lý PCM/waveform local.
 - Pillow cho chuẩn hoá ảnh live JPEG/WebP từ Google Flow thành PNG managed.
+- FFmpeg 9/FFprobe trong Conda environment `video-gensystem` cho render/probe motion thật.
 
 ## Hạng mục đã hoàn thành
 
@@ -215,6 +216,34 @@
 - Batch dùng priority overnight, giữ render order độc lập với Shot order.
 - Acceptance tự động với 80 shot tổng quát tạo đủ 80 Asset, mỗi Shot có một image.
 
+### Bước 25 — Ken Burns FFmpeg
+
+- `app/motion/kenburns.py` render MP4 bằng FFmpeg `zoompan`, hỗ trợ zoom in/out và pan bốn hướng.
+- Validate duration/FPS/zoom/direction, ảnh nguồn, output `.mp4`, không ghi đè và ghi file atomic.
+- `probe_video` trả duration, FPS, frame count, width, height và codec.
+- Acceptance thật từ ảnh Google Flow: `live_test/kenburns_5s.mp4`, 5.0 giây, 30 FPS, 150 frame, 1376×768, H.264.
+
+### Bước 26 — VideoProvider + Wan/Veo adapters
+
+- Interface `VideoProvider.generate(source_image, prompt, config) -> Path` và cost metadata.
+- Wan 2.2 adapter upload source image vào ComfyUI, inject prompt, submit/poll workflow, tải MP4 và validate container.
+- Integration test Wan dùng protocol ComfyUI giả lập nhưng MP4 FFmpeg thật; FFprobe xác nhận 12 frame/12 FPS.
+- Veo cloud adapter dùng optional Google GenAI SDK, long-running operation, download atomic và mặc định model `veo-3.1-generate-preview`; không live-call để tránh chi phí/API side effect.
+
+### Bước 27 — Motion fill + fallback
+
+- `extend` phát clip một lần, lấy frame cuối và nối đuôi Ken Burns nhẹ tới đúng effective duration.
+- `loop` chỉ chạy khi policy được chọn explicit; clip dài hơn target được trim cuối.
+- `split` tạo kế hoạch sub-shot ID ổn định (`s042_01`...) với tổng duration khớp shot gốc.
+- Generative provider thử tối đa ba lần, sau đó thử sprite renderer nếu có và cuối cùng luôn về Ken Burns.
+- Test cả extend/split/loop và Wan fail ba lần → sprite fail → Ken Burns thành công.
+
+### Bước 28 — Motion Queue
+
+- Screen thứ bảy queue Wan/Veo job, hiển thị progress/error, retry job failed, preview MP4 variation và chọn `is_chosen`.
+- Motion worker giữ provider/FFmpeg ngoài DB transaction, tạo immutable Asset `video`, metadata/checksum và idempotency theo Job.
+- Acceptance queue 15 shot tổng quát; priority GPU, retry reset rõ ràng và chosen motion constraint hoạt động.
+
 ### Giới hạn live provider
 
 - Manual provider đã chạy end-to-end bằng PNG thật.
@@ -230,7 +259,7 @@
 
 ```text
 python -m app --version: 0.1.0
-pytest: 82 passed
+pytest: 89 passed
 alembic check: No new upgrade operations detected
 PRAGMA journal_mode: wal
 PRAGMA busy_timeout: 5000
@@ -245,7 +274,8 @@ character batch key, bulk update 20 Shot, waveform/silence/cắt WAV 5 phút,
 transactional script import và Streamlit AppTest end-to-end, warning/failure rollback,
 constraints của chosen asset, bảo mật đường dẫn, queue priority, SQLite lock retry,
 hai worker claim đồng thời, stale recovery, ba image provider adapters, retry timeout,
-image Asset versioning/cost, gallery UI và batch 80 shot.
+image Asset versioning/cost, gallery UI và batch 80 shot, Ken Burns MP4 thật,
+video metadata, Wan/Veo adapters, motion fill/fallback, motion worker và Motion Queue UI.
 
 ## Git
 
@@ -257,6 +287,5 @@ image Asset versioning/cost, gallery UI và batch 80 shot.
 
 ## Bước tiếp theo
 
-Chờ đặc tả bước tiếp theo sau Bước 24.
-
-Không triển khai ngoài Bước 24 khi chưa có yêu cầu tiếp theo.
+Chờ đặc tả bước tiếp theo sau Bước 28. Wan live acceptance cần ComfyUI đang chạy,
+workflow Wan 2.2 API JSON và model tương thích; Veo live là optional và có thể phát sinh phí.

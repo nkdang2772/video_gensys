@@ -89,6 +89,9 @@ def test_streamlit_series_episode_import_and_shot_manager(
     assert not at.exception
     assert any(header.value == "Image Gallery" for header in at.header)
     assert any(caption.value == "No image variations yet." for caption in at.caption)
+    element_by_key(at.radio, "main_navigation").set_value("Motion Queue").run(timeout=20)
+    assert not at.exception
+    assert any(header.value == "Motion Queue" for header in at.header)
 
     verify_engine = create_db_engine(database_url)
     with verify_engine.connect() as connection:

@@ -39,6 +39,7 @@ FFprobe is provided by the Conda `ffmpeg` package. If it is not on PATH, set its
 
 ```powershell
 $env:VIDEO_GENSYSTEM_FFPROBE_PATH = "C:\path\to\ffprobe.exe"
+$env:VIDEO_GENSYSTEM_FFMPEG_PATH = "C:\path\to\ffmpeg.exe"
 ```
 
 Reference CLI example:
@@ -57,7 +58,7 @@ $env:VIDEO_GENSYSTEM_LIBRARY_ROOT = "D:\video_gensystem\library"
 streamlit run streamlit_app.py
 ```
 
-The five MVP screens are Series, Episodes, Import, Shot Manager, and References. Local path inputs are available for desktop workflows; upload controls remain available for scripts, multiple WAV files, and reference versions.
+The current MVP screens are Series, Episodes, Import, Shot Manager, References, Image Gallery, and Motion Queue. Local path inputs are available for desktop workflows; upload controls remain available for scripts, multiple WAV files, and reference versions.
 
 ## SQLite job queue
 
@@ -71,6 +72,15 @@ Queue operations live under `app.queue`. Jobs are ordered by `high`, `normal`, `
 - Manual fallback copies an existing PNG into managed episode storage without overwriting the source.
 
 The Image Gallery queues work. Run image jobs from Python with `app.workers.image_gen.run_image_worker`; generated variations are immutable Asset versions and are not chosen automatically.
+
+## Motion providers
+
+- `render_kenburns` renders deterministic H.264 MP4 clips with FFmpeg `zoompan`; video duration, frame count, FPS, dimensions and codec are verified through FFprobe.
+- `wan_local` runs an image-to-video ComfyUI workflow. Configure the API workflow, prompt node and source-image node in Motion Queue.
+- `veo_cloud` uses the optional Google GenAI SDK and defaults to `veo-3.1-generate-preview`; install it with `python -m pip install -e ".[veo]"`. It is optional and does not block the local Wan/Ken Burns workflow.
+- Motion fill defaults to `extend`; `loop` must be explicit and `split` produces deterministic sub-shot plans. Three generative failures fall through sprite support to Ken Burns so a Shot is never silently empty.
+
+Run queued motion jobs with `app.workers.motion_gen.run_motion_worker`. Motion variations are immutable `video` Assets and become selected only through Motion Queue.
 
 ## Foundation guarantees
 

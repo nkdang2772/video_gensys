@@ -35,6 +35,7 @@ def ffprobe_executable() -> str:
         candidates.append(Path(discovered))
     conda_envs = Path.home() / "anaconda3" / "envs"
     if conda_envs.is_dir():
+        candidates.append(conda_envs / "video-gensystem" / "Library" / "bin" / "ffprobe.exe")
         candidates.extend(conda_envs.glob("*/Library/bin/ffprobe.exe"))
     package_root = Path.home() / "anaconda3" / "pkgs"
     if package_root.is_dir():
@@ -53,3 +54,28 @@ def ffprobe_executable() -> str:
         if result.returncode == 0:
             return str(candidate)
     pytest.skip("No working ffprobe executable is installed")
+
+
+@pytest.fixture(scope="session")
+def ffmpeg_executable() -> str:
+    candidates: list[Path] = []
+    discovered = shutil.which("ffmpeg")
+    if discovered:
+        candidates.append(Path(discovered))
+    conda_envs = Path.home() / "anaconda3" / "envs"
+    if conda_envs.is_dir():
+        candidates.append(conda_envs / "video-gensystem" / "Library" / "bin" / "ffmpeg.exe")
+        candidates.extend(conda_envs.glob("*/Library/bin/ffmpeg.exe"))
+    for candidate in candidates:
+        try:
+            result = subprocess.run(
+                [str(candidate), "-hide_banner", "-encoders"],
+                capture_output=True,
+                timeout=5,
+                check=False,
+            )
+        except (OSError, subprocess.TimeoutExpired):
+            continue
+        if result.returncode == 0 and b"libx264" in result.stdout:
+            return str(candidate)
+    pytest.skip("No working ffmpeg executable is installed")

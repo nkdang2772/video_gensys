@@ -15,3 +15,17 @@ __all__ = [
     "generate_waveform_png",
     "probe_audio",
 ]
+from app.media.ffmpeg import FFMPEG_PATH_ENV, FFmpegError, resolve_ffmpeg, run_ffmpeg
+from app.media.ffprobe import AudioMetadata, FFprobeError, VideoMetadata, probe_audio, probe_video
+
+__all__ = [
+    "AudioMetadata",
+    "FFMPEG_PATH_ENV",
+    "FFmpegError",
+    "FFprobeError",
+    "VideoMetadata",
+    "probe_audio",
+    "probe_video",
+    "resolve_ffmpeg",
+    "run_ffmpeg",
+]
