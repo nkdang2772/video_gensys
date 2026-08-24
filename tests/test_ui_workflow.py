@@ -5,11 +5,12 @@ from pathlib import Path
 
 from sqlalchemy import func, select
 
-from app.db import Base, create_db_engine
-from app.models import Asset, Episode, EpisodeReferencePin, Series, Shot
+from app.db import Base, create_db_engine, create_session_factory
+from app.models import Asset, Episode, EpisodeReferencePin, Reference, Series, Shot
 from app.services.episode import create_episode
 from app.services.reference import add_version, create_reference
 from app.services.series import create_series
+from app.services.shot import create_shot
 from tests.test_ffprobe import write_silent_wav
 
 
@@ -91,6 +92,37 @@ def test_streamlit_series_episode_import_and_shot_manager(
     element_by_key(at.radio, "main_navigation").set_value("Shot Manager").run(timeout=20)
     assert not at.exception
     assert any(header.value == "Shot Manager" for header in at.header)
+
+    # Scene filtering exposes exactly the ten shots imported into Scene 1.
+    element_by_key(at.selectbox, "shot_filter_scene").select("Scene 1").run(timeout=20)
+    filtered_tables = [table.value for table in at.dataframe if "shot_id" in table.value.columns]
+    assert len(filtered_tables) == 1
+    assert list(filtered_tables[0]["shot_id"]) == [f"s{index:03d}" for index in range(1, 11)]
+    element_by_key(at.selectbox, "shot_filter_scene").select("All").run(timeout=20)
+
+    # Add a generic character reference, then assign it to twenty shots through the UI.
+    manager_engine = create_db_engine(database_url)
+    manager_factory = create_session_factory(manager_engine)
+    with manager_factory() as manager_session:
+        series_id = manager_session.scalar(select(Series.id))
+        create_reference(
+            manager_session,
+            name="Hero",
+            slug="hero",
+            reference_type="character",
+            scope="series_specific",
+            owning_series_id=series_id,
+        )
+        manager_session.commit()
+    manager_engine.dispose()
+    at.run(timeout=20)
+    selected_shots = [f"s{index:03d}" for index in range(1, 21)]
+    element_by_key(at.multiselect, "shot_bulk_selection").set_value(selected_shots)
+    element_by_key(at.multiselect, "shot_bulk_characters").select("Hero (hero)").run(timeout=20)
+    element_by_key(at.selectbox, "shot_bulk_primary").select("hero")
+    element_by_key(at.button, "shot_bulk_apply").click().run(timeout=20)
+    assert any(message.value == "Updated 20 shots" for message in at.success)
+    assert len(at.get("audio")) == 1
     element_by_key(at.radio, "main_navigation").set_value("References").run(timeout=20)
     assert not at.exception
     assert any(header.value == "Reference Library" for header in at.header)
@@ -114,6 +146,10 @@ def test_streamlit_series_episode_import_and_shot_manager(
         assert connection.scalar(select(func.count()).select_from(Episode)) == 1
         assert connection.scalar(select(func.count()).select_from(Shot)) == 80
         assert connection.scalar(select(func.count()).select_from(Asset)) == 80
+        assigned = connection.scalar(
+            select(func.count()).select_from(Shot).where(Shot.primary_character_id == "hero")
+        )
+        assert assigned == 20
     verify_engine.dispose()
 
 
@@ -171,6 +207,48 @@ def test_streamlit_import_requires_a_script_source(tmp_path: Path, monkeypatch) 
     with verify_engine.connect() as connection:
         assert connection.scalar(select(func.count()).select_from(Shot)) == 0
     verify_engine.dispose()
+
+
+def test_shot_manager_bulk_assignment_requires_a_shot(tmp_path: Path, monkeypatch) -> None:
+    with warnings.catch_warnings():
+        warnings.simplefilter("ignore", DeprecationWarning)
+        from streamlit.testing.v1 import AppTest
+
+    database = tmp_path / "ui_shot_error.db"
+    database_url = f"sqlite:///{database.as_posix()}"
+    engine = create_db_engine(database_url)
+    Base.metadata.create_all(engine)
+    factory = create_session_factory(engine)
+    with factory() as session:
+        series = create_series(session, name="Shot Error Series")
+        session.commit()
+        episode = create_episode(
+            session,
+            series_id=series.id,
+            episode_number=1,
+            title="Shot Error Episode",
+            library_root=tmp_path / "library",
+        )
+        create_shot(
+            session,
+            episode_id=episode.id,
+            shot_id="s001",
+            order_index=1,
+        )
+        session.commit()
+        episode_id = episode.id
+    engine.dispose()
+    monkeypatch.setenv("VIDEO_GENSYSTEM_DATABASE_URL", database_url)
+    monkeypatch.setenv("VIDEO_GENSYSTEM_LIBRARY_ROOT", str(tmp_path / "library"))
+
+    app_file = Path(__file__).parents[1] / "streamlit_app.py"
+    at = AppTest.from_file(str(app_file)).run(timeout=20)
+    at.session_state["selected_episode_id"] = episode_id
+    element_by_key(at.radio, "main_navigation").set_value("Shot Manager").run(timeout=20)
+    element_by_key(at.button, "shot_bulk_apply").click().run(timeout=20)
+
+    assert not at.exception
+    assert any("Select at least one shot" in message.value for message in at.error)
 
 
 def test_six_generic_character_references_are_pinned_when_episode_is_created(
