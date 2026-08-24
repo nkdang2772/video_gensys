@@ -102,6 +102,57 @@ def test_create_episode_pins_active_series_references_and_style_anchor(session, 
     assert {pin.reference_version.version for pin in pins} == {2, 3}
 
 
+def test_episode_snapshot_and_pins_ignore_later_series_and_reference_changes(
+    session, tmp_path: Path
+) -> None:
+    series, character, _, _ = prepare_series_with_references(session)
+    episode = create_episode(
+        session,
+        series_id=series.id,
+        episode_number=1,
+        title="Example Episode",
+        library_root=tmp_path,
+    )
+    original_pin = session.scalar(
+        select(EpisodeReferencePin).where(
+            EpisodeReferencePin.episode_id == episode.id,
+            EpisodeReferencePin.reference_id == character.id,
+        )
+    )
+    assert original_pin is not None
+    original_version_id = original_pin.reference_version_id
+
+    series.default_resolution = "1280x720"
+    series.default_fps = 60.0
+    series.palette_json = {"primary": "blue"}
+    character.current_version = 3
+    session.add(
+        ReferenceVersion(
+            reference=character,
+            version=3,
+            file_path="character-v3.png",
+            checksum="c3",
+            created_at=datetime.now(timezone.utc),
+        )
+    )
+    session.commit()
+    session.expire_all()
+
+    persisted_episode = session.get(Episode, episode.id)
+    persisted_pin = session.scalar(
+        select(EpisodeReferencePin).where(
+            EpisodeReferencePin.episode_id == episode.id,
+            EpisodeReferencePin.reference_id == character.id,
+        )
+    )
+    assert persisted_episode is not None
+    assert persisted_pin is not None
+    assert persisted_episode.effective_resolution == "3840x2160"
+    assert persisted_episode.effective_fps == 25.0
+    assert persisted_episode.palette_snapshot_json == {"primary": "red"}
+    assert persisted_pin.reference_version_id == original_version_id
+
+
 def test_disk_failure_rolls_back_episode_and_partial_folder(
     session, tmp_path: Path, monkeypatch
 ) -> None:

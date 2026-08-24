@@ -4,8 +4,8 @@
 **Thư mục dự án:** `D:\video_gensystem`  
 **Phiên bản ứng dụng:** `0.1.0`  
 **Giai đoạn hiện tại:** Audit/revalidation tuần tự theo DoD nghiêm ngặt
-**Gate chính thức:** **Bước 1–5 — PASS; Bước 6 — đang revalidate**
-**Trạng thái:** Code lịch sử tồn tại đến Bước 30, nhưng chỉ Bước 1–5 đã đủ branch/PR/CI/merge để được đánh PASS chính thức. Không bắt đầu Bước 7 trước khi Bước 6 có PR, CI xanh và merge.
+**Gate chính thức:** **Bước 1–6 — PASS; Bước 7 — đang revalidate**
+**Trạng thái:** Code lịch sử tồn tại đến Bước 30, nhưng chỉ Bước 1–6 đã đủ branch/PR/CI/merge để được đánh PASS chính thức. Không bắt đầu Bước 8 trước khi Bước 7 có PR, CI xanh và merge.
 
 **Nguyên tắc phạm vi:** hệ thống là nền tảng sản xuất hình/voice/motion tổng quát cho mọi series. “Xích Bích”, “Tam Quốc” và các tên nhân vật lịch sử chỉ là test fixture/ví dụ acceptance, không phải domain được hard-code.
 
@@ -23,8 +23,10 @@
 - Bằng chứng Bước 4: đủ 17 CHECK constraint trong ORM metadata; CRUD trực tiếp 10 model; invariant nhân vật; `alembic check` sạch; full CI **97/97 pass**.
 - **Bước 5 PASS:** branch `codex/step5-revalidation`, PR [#5](https://github.com/nkdang2772/video_gensys/pull/5), 2/2 GitHub checks xanh và merge commit `45b990a` trên `main`.
 - Bằng chứng Bước 5: `resolve()` chặn traversal/absolute/drive-relative; `to_relative()` chỉ nhận absolute path trong episode root; targeted **9/9 pass**, full CI **99/99 pass**.
-- **Bước 6 đang revalidate** trên branch `codex/step6-revalidation`: đủ create/list/get/update/soft delete, slug unique toàn cục và CLI create. Targeted **7/7 pass** sau khi đóng BUG-033; full regression **100/100 pass**. PR/CI/merge còn chờ.
-- Các mô tả “đã hoàn thành” bên dưới là inventory implementation lịch sử, không phải dấu check DoD cho Bước 6–30.
+- **Bước 6 PASS:** branch `codex/step6-revalidation`, PR [#6](https://github.com/nkdang2772/video_gensys/pull/6), 2/2 GitHub checks xanh và merge commit `e6e8e2a` trên `main`.
+- Bằng chứng Bước 6: đủ create/list/get/update/soft delete, slug unique toàn cục, CLI create; targeted **7/7 pass**, full CI **100/100 pass**; BUG-033 đã đóng.
+- **Bước 7 đang revalidate** trên branch `codex/step7-revalidation`: snapshot cấu hình, pin active series references + style anchor, folder tree và rollback disk/database đều pass. Targeted **6/6 pass**, gồm snapshot/pin bất biến sau khi Series/reference thay đổi; full regression **101/101 pass**. PR/CI/merge còn chờ.
+- Các mô tả “đã hoàn thành” bên dưới là inventory implementation lịch sử, không phải dấu check DoD cho Bước 7–30.
 
 ## Tech stack đã chốt
 
