@@ -6,9 +6,16 @@
 ## Tổng quan
 
 - Lỗi đang mở: **0**
-- Lỗi đã đóng: **32**
-- Test regression gần nhất trên `main`: **97/97 pass**
-- Bước 5 trên branch `codex/step5-revalidation`: targeted **9/9 pass**, full regression **99/99 pass**
+- Lỗi đã đóng: **36**
+- Test regression gần nhất trên `main`: **101/101 pass**
+- Bước 8 trên branch `codex/step8-revalidation`: targeted **12/12 pass**, full regression **104/104 pass**
+
+## OBS-001 — Một lượt batch FFprobe 80 WAV thiếu hai file, chưa tái hiện
+
+- **Trạng thái:** Theo dõi, chưa xác nhận là bug production
+- **Phát hiện:** Lượt full regression đầu của Bước 8 import 78/80 WAV và báo thiếu audio cho `s060` cùng một shot khác.
+- **Đối chứng:** Test batch 80 WAV chạy riêng pass; lặp tiếp 3/3 lần đều pass 80/80; full suite mới pass 104/104.
+- **Xử lý hiện tại:** Không thay đổi Step 9/10 ngoài phạm vi khi chưa có reproduction hoặc warning FFprobe cụ thể; giữ sự cố trong nhật ký để đối chiếu nếu tái diễn.
 
 ## BUG-032 — `to_relative()` chấp nhận input tương đối phụ thuộc working directory
 
@@ -340,6 +347,36 @@
 - **Nguyên nhân:** Hàm gán slug vào model trước khi validate toàn bộ trường đầu vào.
 - **Cách sửa:** Chuẩn hóa và validate tất cả thay đổi vào bản sao trước; chỉ mutate ORM model sau khi mọi validation đều pass.
 - **Regression test:** Update đồng thời `slug="unexpected-slug"` và `name="   "` phải raise; commit/refresh sau lỗi vẫn giữ nguyên name và slug cũ.
+
+## BUG-034 — Record rỗng bỏ qua kiểm tra thiếu shot_id
+
+- **Trạng thái:** Đã đóng
+- **Mức độ:** Cao, parser/data integrity
+- **Phát hiện:** Revalidation Bước 8 với JSON `[{}]` và CSV row rỗng có delimiter.
+- **Triệu chứng:** `normalize_records()` bỏ qua record không có giá trị nên parser trả danh sách rỗng thay vì `ParseError` cho shot thiếu ID.
+- **Nguyên nhân:** Blank-record shortcut chạy trước validation `shot_id`.
+- **Cách sửa:** Mọi record do parser tạo đều phải qua validation; dòng CSV vật lý trống vẫn do `csv` tự bỏ qua.
+- **Regression test:** JSON `[{}]` phải raise `ParseError` chứa `Missing shot_id`.
+
+## BUG-035 — CSV quote chưa đóng được chấp nhận
+
+- **Trạng thái:** Đã đóng
+- **Mức độ:** Cao, parser/data integrity
+- **Phát hiện:** Revalidation Bước 8 với quoted field kết thúc file khi chưa đóng quote.
+- **Triệu chứng:** CSV lỗi cú pháp vẫn được parse thành một Shot hợp lệ.
+- **Nguyên nhân:** `csv.DictReader` dùng mặc định `strict=False`.
+- **Cách sửa:** Khởi tạo reader với `strict=True` và chuyển `csv.Error` thành `ParseError` có source context.
+- **Regression test:** Quoted TEXT chưa đóng phải raise `ParseError` chứa `Invalid CSV`.
+
+## BUG-036 — TXT parser làm mất dòng trống trong multiline
+
+- **Trạng thái:** Đã đóng
+- **Mức độ:** Trung bình, content fidelity
+- **Phát hiện:** Revalidation Bước 8 với hai paragraph trong TEXT/VISUAL.
+- **Triệu chứng:** Dòng trống nội bộ bị collapse, làm thay đổi bố cục nội dung so với script nguồn.
+- **Nguyên nhân:** Khi nối dòng kế tiếp, parser gọi `rstrip("\n")` và xóa newline đã ghi cho dòng trống.
+- **Cách sửa:** Nối dòng tiếp theo mà không xóa newline đã tích lũy; bước normalize chỉ loại whitespace ngoài cùng.
+- **Regression test:** TEXT và VISUAL có một dòng trống giữa hai đoạn phải giữ đúng `"line 1\n\nline 2"`.
 
 ## Quy ước cập nhật
 

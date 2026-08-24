@@ -47,8 +47,6 @@ def normalize_records(
     for index, record in enumerate(records, start=1):
         if not isinstance(record, Mapping):
             raise ParseError("Each shot must be an object/row", source=source, location=index)
-        if not any(_text(value) for value in record.values() if value is not None):
-            continue
 
         raw_shot_id = _text(_value(record, "shot_id", "shot"))
         if not raw_shot_id:

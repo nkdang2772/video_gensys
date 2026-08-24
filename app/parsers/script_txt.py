@@ -80,7 +80,7 @@ def parse_text(content: str, *, source: str | Path = "<memory>") -> list[ParsedS
                 location=line_number,
             )
         current_shot[active_multiline_field] = (
-            current_shot.get(active_multiline_field, "").rstrip("\n") + "\n" + stripped
+            current_shot.get(active_multiline_field, "") + "\n" + stripped
         )
 
     finish_current()
@@ -94,4 +94,3 @@ def parse_file(path: str | Path, *, encoding: str = "utf-8-sig") -> list[ParsedS
     except (OSError, UnicodeError) as exc:
         raise ParseError(f"Could not read script: {exc}", source=source) from exc
     return parse_text(content, source=source)
-

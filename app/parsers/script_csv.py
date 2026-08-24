@@ -9,7 +9,7 @@ from app.parsers.common import ParseError, ParsedShot, normalize_records
 
 def parse_text(content: str, *, source: str | Path = "<memory>") -> list[ParsedShot]:
     try:
-        reader = csv.DictReader(io.StringIO(content))
+        reader = csv.DictReader(io.StringIO(content), strict=True)
         if reader.fieldnames is None:
             raise ParseError("CSV header is missing", source=source)
         return normalize_records(reader, source=source)
@@ -24,4 +24,3 @@ def parse_file(path: str | Path, *, encoding: str = "utf-8-sig") -> list[ParsedS
     except (OSError, UnicodeError) as exc:
         raise ParseError(f"Could not read script: {exc}", source=source) from exc
     return parse_text(content, source=source)
-
