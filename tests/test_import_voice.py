@@ -5,6 +5,7 @@ from pathlib import Path
 import pytest
 from sqlalchemy import func, select
 
+from app.media.ffprobe import AudioMetadata, FFprobeTimeoutError
 from app.models import Asset, Episode, Shot
 from app.services import import_voice as import_voice_service
 from app.services.import_voice import VoiceImportError, import_voice_folder, match_shot_id
@@ -138,6 +139,35 @@ def test_valid_second_candidate_imports_after_first_candidate_is_broken(
     )
     assert len(report.imported_assets) == 1
     assert [warning.code for warning in report.warnings] == ["probe_failed"]
+
+
+def test_transient_ffprobe_timeout_is_retried(
+    session, tmp_path: Path, ffprobe_executable: str, monkeypatch
+) -> None:
+    episode = create_episode_with_shots(session, tmp_path, count=1)
+    voice_folder = tmp_path / "voice"
+    voice_folder.mkdir()
+    write_silent_wav(voice_folder / "s001.wav", 0.02)
+    attempts = 0
+
+    def timeout_once(_path, **_kwargs):
+        nonlocal attempts
+        attempts += 1
+        if attempts == 1:
+            raise FFprobeTimeoutError("simulated transient timeout")
+        return AudioMetadata(duration_sec=0.02, sample_rate=8000, channels=1, codec="pcm_s16le")
+
+    monkeypatch.setattr(import_voice_service, "probe_audio", timeout_once)
+    report = import_voice_folder(
+        session,
+        episode_id=episode.id,
+        folder=voice_folder,
+        ffprobe_path=ffprobe_executable,
+    )
+
+    assert attempts == 2
+    assert len(report.imported_assets) == 1
+    assert not report.warnings
 
 
 def test_failure_after_copy_rolls_back_database_and_removes_file(

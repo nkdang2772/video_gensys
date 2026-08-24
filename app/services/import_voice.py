@@ -9,13 +9,14 @@ from pathlib import Path
 from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
-from app.media.ffprobe import FFprobeError, probe_audio
+from app.media.ffprobe import FFprobeError, FFprobeTimeoutError, probe_audio
 from app.models import Asset, Episode, Shot
 from app.paths import resolve, to_relative
 from app.services.errors import DomainError
 
 S_SHOT_PATTERN = re.compile(r"(?<![a-z0-9])(s\d+)(?!\d)", re.IGNORECASE)
 SAFE_FILE_COMPONENT_PATTERN = re.compile(r"^[A-Za-z0-9][A-Za-z0-9_-]*$")
+FFPROBE_MAX_ATTEMPTS = 2
 
 
 class VoiceImportError(DomainError):
@@ -141,7 +142,13 @@ def import_voice_folder(
                     continue
                 shot = shots_by_id[matched_id]
                 try:
-                    metadata = probe_audio(source_file, ffprobe_path=ffprobe_path)
+                    for attempt in range(1, FFPROBE_MAX_ATTEMPTS + 1):
+                        try:
+                            metadata = probe_audio(source_file, ffprobe_path=ffprobe_path)
+                            break
+                        except FFprobeTimeoutError:
+                            if attempt == FFPROBE_MAX_ATTEMPTS:
+                                raise
                 except FFprobeError as exc:
                     report.warnings.append(
                         VoiceImportWarning(
