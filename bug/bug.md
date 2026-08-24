@@ -6,9 +6,9 @@
 ## Tổng quan
 
 - Lỗi đang mở: **0**
-- Lỗi đã đóng: **42**
-- Test regression gần nhất trên `main`: **126/126 pass** (Bước 22, PR #24, merge commit `3a08cc2`)
-- Bước 23 trên branch `codex/step23-revalidation`: targeted **3/3 pass**, full regression **127/127 pass**.
+- Lỗi đã đóng: **43**
+- Test regression gần nhất trên `main`: **127/127 pass** (Bước 23, PR #25, merge commit `0ae231d`)
+- Bước 24 trên branch `codex/step24-revalidation`: targeted **4/4 pass**, full regression **129/129 pass**.
 
 ## OBS-001 — Batch FFprobe 80 WAV từng thiếu file
 
@@ -437,6 +437,16 @@
 - **Nguyên nhân:** Validator gọi `float()` trực tiếp và chỉ kiểm tra `< 0`, không bắt lỗi chuyển đổi hoặc kiểm tra số hữu hạn.
 - **Cách sửa:** Chuẩn hóa cost qua helper chung, bắt `TypeError`/`ValueError`, yêu cầu số hữu hạn và không âm trước khi tạo `ProviderCost`.
 - **Regression test:** Google Flow, ComfyUI và manual trả cost metadata đúng; chuỗi không phải số, `NaN` và số âm đều raise `ProviderError`. Targeted 2/2, full 126/126.
+
+## BUG-043 — AppTest Image Gallery phụ thuộc tên element nội bộ của Streamlit
+
+- **Trạng thái:** Đã đóng
+- **Mức độ:** Trung bình, CI portability
+- **Phát hiện:** CI push đầu tiên của PR #26 Bước 24; local 129/129 nhưng GitHub CI 128 pass/1 fail.
+- **Triệu chứng:** `at.get("imgs")` trả 2 trên Streamlit local nhưng trả danh sách rỗng trên phiên bản CI, dù UI vẫn render đủ hai variation và hai nút chọn.
+- **Nguyên nhân:** Test phụ thuộc tên element-tree nội bộ `imgs`, không phải contract/key ổn định của ứng dụng.
+- **Cách sửa:** Xác nhận grid bằng hai button key `gallery_choose_*` và đúng một button disabled cho chosen asset.
+- **Regression test:** Targeted 4/4 và full 129/129 pass lại local trước khi push CI mới.
 
 ## Quy ước cập nhật
 

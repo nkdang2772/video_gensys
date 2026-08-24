@@ -4,8 +4,8 @@
 **Thư mục dự án:** `D:\video_gensystem`  
 **Phiên bản ứng dụng:** `0.1.0`  
 **Giai đoạn hiện tại:** Audit/revalidation tuần tự theo DoD nghiêm ngặt
-**Gate chính thức:** **Bước 1–22 — PASS; Bước 23 — đang revalidate**
-**Trạng thái:** Code lịch sử tồn tại đến Bước 30, nhưng chỉ Bước 1–22 đã đủ branch/PR/CI/merge để được đánh PASS chính thức. Bước 23 đã đạt test local nhưng chưa được đánh PASS trước khi có PR, CI xanh và merge; Bước 24 chưa bắt đầu.
+**Gate chính thức:** **Bước 1–23 — PASS; Bước 24 — đang revalidate**
+**Trạng thái:** Code lịch sử tồn tại đến Bước 30, nhưng chỉ Bước 1–23 đã đủ branch/PR/CI/merge để được đánh PASS chính thức. Bước 24 đã đạt test local nhưng chưa được đánh PASS trước khi có PR, CI xanh và merge; Bước 25 chưa bắt đầu.
 
 **Nguyên tắc phạm vi:** hệ thống là nền tảng sản xuất hình/voice/motion tổng quát cho mọi series. “Xích Bích”, “Tam Quốc” và các tên nhân vật lịch sử chỉ là test fixture/ví dụ acceptance, không phải domain được hard-code.
 
@@ -57,8 +57,10 @@
 - Bằng chứng Bước 21: mô phỏng worker chết giữa job, recovery đánh dấu `stale`, tăng attempt và đưa job retryable về `queued`; job đạt `max_attempts` giữ `failed`. BUG-041 sửa boundary để chỉ thời gian chạy **lớn hơn** timeout mới stale. Targeted **3/3 pass**, full CI **125/125 pass**.
 - **Bước 22 PASS:** branch `codex/step22-revalidation`, PR [#24](https://github.com/nkdang2772/video_gensys/pull/24), 2/2 GitHub checks xanh và merge commit `3a08cc2` trên `main`.
 - Bằng chứng Bước 22: Google Flow bridge/extension (không Gemini API), ComfyUI workflow và manual fallback đều sinh PNG đúng contract; reference image truyền đúng, output được validate/no-overwrite. Cost metadata của cả ba adapter được xác nhận; BUG-042 chặn cost không hữu hạn/không phải số. Targeted **2/2 pass**, full CI **126/126 pass**.
-- **Bước 23 đang revalidate** trên branch `codex/step23-revalidation`: 10 image job tạo đúng 10 Asset version mới với `is_chosen=false` và cost; pinned ReferenceVersion được dùng. Provider timeout hai lần rồi thành công lần ba; timeout liên tục dừng đúng `max_attempts=3`, Job giữ failed và không tạo Asset. Targeted **3/3 pass**, full regression **127/127 pass**; PR/CI/merge còn chờ.
-- Các mô tả “đã hoàn thành” bên dưới là inventory implementation lịch sử, không phải dấu check DoD cho Bước 23–30.
+- **Bước 23 PASS:** branch `codex/step23-revalidation`, PR [#25](https://github.com/nkdang2772/video_gensys/pull/25), 2/2 GitHub checks xanh và merge commit `0ae231d` trên `main`.
+- Bằng chứng Bước 23: 10 image job tạo đúng 10 Asset version mới với `is_chosen=false` và cost; pinned ReferenceVersion được dùng. Provider timeout hai lần rồi thành công lần ba; timeout liên tục dừng đúng `max_attempts=3`, Job giữ failed và không tạo Asset. Targeted **3/3 pass**, full CI **127/127 pass**.
+- **Bước 24 đang revalidate** trên branch `codex/step24-revalidation`: AppTest hiển thị variation grid, chọn version và queue regenerate với prompt sửa; manual batch bị chặn rõ ràng. Nút batch Google Flow queue đúng 80 job `overnight` theo `character_batch_key`; worker acceptance tạo đủ 80 Asset cho 80 shot tổng quát. Targeted **4/4 pass**, full regression **129/129 pass**; PR/CI/merge còn chờ.
+- Các mô tả “đã hoàn thành” bên dưới là inventory implementation lịch sử, không phải dấu check DoD cho Bước 24–30.
 
 ## Tech stack đã chốt
 
