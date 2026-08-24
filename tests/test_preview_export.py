@@ -137,6 +137,27 @@ def test_checker_lists_placeholder_and_writes_html_json(
     assert "Manual review still required" in report.html_path.read_text(encoding="utf-8")
 
 
+def test_export_is_blocked_by_qa_errors_without_partial_package(
+    session: Session, tmp_path: Path, ffmpeg_executable: str, ffprobe_executable: str
+) -> None:
+    episode, _scene, _shots = _episode(session, tmp_path, 1)
+    session.flush()
+
+    with pytest.raises(ValueError, match="Export blocked by"):
+        export_episode_package(
+            session,
+            episode.id,
+            ffmpeg_path=ffmpeg_executable,
+            ffprobe_path=ffprobe_executable,
+        )
+
+    root = Path(episode.root_path)
+    assert (root / "qa" / "report.json").is_file()
+    assert (root / "qa" / "report.html").is_file()
+    assert not (root / "export" / "shot_manifest.csv").exists()
+    assert not (root / "export" / "EXPORT_INCOMPLETE.txt").exists()
+
+
 def test_export_package_has_exactly_sixteen_columns(
     session: Session, tmp_path: Path, ffmpeg_executable: str, ffprobe_executable: str
 ) -> None:
