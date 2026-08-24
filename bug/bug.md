@@ -7,7 +7,7 @@
 
 - Lỗi đang mở: **0**
 - Lỗi đã đóng: **46**
-- Test regression gần nhất trên feature branch `codex/otio-auto-timeline`: **138/138 pass**; baseline `main` vẫn là **137/137 pass** (Bước 30, PR #33, merge commit `4c98662`)
+- Test regression gần nhất trên `main`: **138/138 pass** (Auto timeline OTIO/OTIOZ, PR #35, merge commit `d09cc1c`)
 - Gate chính thức: **Bước 1–30 PASS**.
 
 ## OBS-002 — Thumbnail ảnh OTIOZ trong Media Pool chậm cập nhật
