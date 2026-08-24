@@ -6,9 +6,9 @@
 ## Tổng quan
 
 - Lỗi đang mở: **0**
-- Lỗi đã đóng: **43**
-- Test regression gần nhất trên `main`: **127/127 pass** (Bước 23, PR #25, merge commit `0ae231d`)
-- Bước 24 trên branch `codex/step24-revalidation`: targeted **4/4 pass**, full regression **129/129 pass**.
+- Lỗi đã đóng: **44**
+- Test regression gần nhất trên `main`: **129/129 pass** (Bước 24, PR #26, merge commit `49b41f1`)
+- Bước 25 trên branch `codex/step25-revalidation`: targeted liên quan **8/8 pass**, full regression **131/131 pass**.
 
 ## OBS-001 — Batch FFprobe 80 WAV từng thiếu file
 
@@ -447,6 +447,16 @@
 - **Nguyên nhân:** Test phụ thuộc tên element-tree nội bộ `imgs`, không phải contract/key ổn định của ứng dụng.
 - **Cách sửa:** Xác nhận grid bằng hai button key `gallery_choose_*` và đúng một button disabled cho chosen asset.
 - **Regression test:** Targeted 4/4 và full 129/129 pass lại local trước khi push CI mới.
+
+## BUG-044 — FFprobe timeout thoáng qua vẫn ảnh hưởng caller ngoài voice import
+
+- **Trạng thái:** Đã đóng
+- **Mức độ:** Cao, media reliability
+- **Phát hiện:** Full regression đầu của Bước 25: 129 pass/1 fail tại WAV thật 0,125 giây do subprocess FFprobe timeout 30 giây; chạy riêng ngay sau đó pass.
+- **Triệu chứng:** BUG-039 đã retry ở Voice import, nhưng caller trực tiếp của `probe_audio()`/`probe_video()` vẫn thất bại khi FFprobe timeout thoáng qua.
+- **Nguyên nhân:** Retry được đặt ở service Voice thay vì wrapper media dùng chung.
+- **Cách sửa:** Wrapper chung retry tối đa hai lần chỉ cho `TimeoutExpired`; OSError/metadata/file hỏng vẫn fail ngay, timeout liên tục vẫn raise `FFprobeTimeoutError`.
+- **Regression test:** Giả lập timeout lần đầu rồi gọi FFprobe thật lần hai phải pass; timeout liên tục phải gọi đúng hai lần với 30 giây rồi raise. Targeted liên quan 8/8, full 131/131.
 
 ## Quy ước cập nhật
 

@@ -10,6 +10,7 @@ from pathlib import Path
 from typing import Any
 
 FFPROBE_PATH_ENV = "VIDEO_GENSYSTEM_FFPROBE_PATH"
+FFPROBE_TIMEOUT_ATTEMPTS = 2
 
 
 class FFprobeError(RuntimeError):
@@ -72,6 +73,28 @@ def _positive_rate(value: Any) -> float | None:
     return top / bottom if top is not None and bottom is not None else None
 
 
+def _run_ffprobe(command: list[str], timeout_sec: float) -> subprocess.CompletedProcess[str]:
+    for attempt in range(FFPROBE_TIMEOUT_ATTEMPTS):
+        try:
+            return subprocess.run(
+                command,
+                capture_output=True,
+                text=True,
+                encoding="utf-8",
+                errors="replace",
+                timeout=timeout_sec,
+                check=False,
+            )
+        except subprocess.TimeoutExpired as exc:
+            if attempt + 1 == FFPROBE_TIMEOUT_ATTEMPTS:
+                raise FFprobeTimeoutError(
+                    f"ffprobe timed out after {timeout_sec:g} seconds"
+                ) from exc
+        except OSError as exc:
+            raise FFprobeError(f"Could not execute ffprobe: {exc}") from exc
+    raise AssertionError("Unreachable FFprobe retry state")
+
+
 def probe_audio(
     path: str | Path,
     *,
@@ -94,20 +117,7 @@ def probe_audio(
         "json",
         str(media_path),
     ]
-    try:
-        result = subprocess.run(
-            command,
-            capture_output=True,
-            text=True,
-            encoding="utf-8",
-            errors="replace",
-            timeout=timeout_sec,
-            check=False,
-        )
-    except subprocess.TimeoutExpired as exc:
-        raise FFprobeTimeoutError(f"ffprobe timed out after {timeout_sec:g} seconds") from exc
-    except OSError as exc:
-        raise FFprobeError(f"Could not execute ffprobe: {exc}") from exc
+    result = _run_ffprobe(command, timeout_sec)
     if result.returncode != 0:
         message = result.stderr.strip() or f"exit code {result.returncode}"
         raise FFprobeError(f"ffprobe failed for {media_path.name}: {message}")
@@ -172,20 +182,7 @@ def probe_video(
         "json",
         str(media_path),
     ]
-    try:
-        result = subprocess.run(
-            command,
-            capture_output=True,
-            text=True,
-            encoding="utf-8",
-            errors="replace",
-            timeout=timeout_sec,
-            check=False,
-        )
-    except subprocess.TimeoutExpired as exc:
-        raise FFprobeTimeoutError(f"ffprobe timed out after {timeout_sec:g} seconds") from exc
-    except OSError as exc:
-        raise FFprobeError(f"Could not execute ffprobe: {exc}") from exc
+    result = _run_ffprobe(command, timeout_sec)
     if result.returncode != 0:
         message = result.stderr.strip() or f"exit code {result.returncode}"
         raise FFprobeError(f"ffprobe failed for {media_path.name}: {message}")
