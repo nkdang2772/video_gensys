@@ -33,6 +33,12 @@ ComfyUI and GPU-specific PyTorch/CUDA packages are intentionally kept outside th
 
 The default database is `data/app.db`. Override it with `VIDEO_GENSYSTEM_DATABASE_URL`, using a SQLAlchemy URL such as `sqlite:///D:/video_gensystem/data/app.db`.
 
+FFprobe is provided by the Conda `ffmpeg` package. If it is not on PATH, set its executable explicitly:
+
+```powershell
+$env:VIDEO_GENSYSTEM_FFPROBE_PATH = "C:\path\to\ffprobe.exe"
+```
+
 ## Foundation guarantees
 
 - Every SQLite connection enables foreign keys, requests WAL mode, and sets a 5000 ms busy timeout.

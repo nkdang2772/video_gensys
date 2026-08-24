@@ -3,8 +3,8 @@
 **Cập nhật:** 2026-08-24  
 **Thư mục dự án:** `D:\video_gensystem`  
 **Phiên bản ứng dụng:** `0.1.0`  
-**Giai đoạn hiện tại:** Phần B — Domain CRUD
-**Trạng thái:** Bước 6–7 hoàn thành
+**Giai đoạn hiện tại:** Phần C — Import
+**Trạng thái:** Bước 8–10 hoàn thành
 
 ## Tech stack đã chốt
 
@@ -69,11 +69,41 @@
 - Khi database hoặc filesystem lỗi, database rollback và folder episode mới được dọn sạch.
 - Migration `0002_series_lifecycle` bổ sung `reference.is_active`.
 
+### Bước 8 — Script parser
+
+- Parser riêng cho TXT, CSV và JSON trong `app/parsers/`.
+- TXT hỗ trợ các tag SCENE, SHOT, SPEAKER, TEXT, VISUAL và MOTION_INTENT.
+- TEXT/VISUAL nhiều dòng được giữ đúng thứ tự và xuống dòng.
+- CSV hỗ trợ multiline đúng chuẩn quoted CSV; JSON hỗ trợ root list hoặc `{ "shots": [...] }`.
+- Phát hiện shot ID thiếu, trùng không phân biệt hoa/thường, motion intent sai và shot ID không an toàn.
+- Fixture Xích Bích cấu trúc 80 shot parse đủ từ `s001` đến `s080`.
+
+### Bước 9 — FFprobe wrapper
+
+- `app/media/ffprobe.py` gọi subprocess không qua shell, timeout mặc định 30 giây.
+- Trả về duration thực, sample rate, channels và codec của audio stream.
+- Từ chối file thiếu, file hỏng, JSON/metadata sai và duration bằng 0.
+- Hỗ trợ cấu hình executable bằng `VIDEO_GENSYSTEM_FFPROBE_PATH` hoặc PATH của Conda.
+- Đã test bằng WAV PCM thật: ngắn, dài, hỏng và duration 0.
+
+### Bước 10 — Voice auto-link và import
+
+- Match `s\d+` trong filename hoặc shot keyword ở đầu filename.
+- Copy WAV vào episode trước khi tạo Asset; lưu path tương đối và checksum SHA-256.
+- Đo duration bằng FFprobe và tạo immutable audio Asset version được chọn.
+- Ghi duration thực vào `Shot.audio_start_sec`, `audio_end_sec` và `audio_duration_sec`.
+- Re-import tạo version mới và chuyển `is_chosen` trong transaction.
+- File sai tên, file hỏng, duplicate candidate và shot thiếu audio đều có warning; không silent skip.
+- Lỗi sau khi copy rollback database và xóa file vừa tạo.
+- Test batch 80 WAV PCM thật tạo đủ 80 chosen audio Asset.
+
+**Giới hạn dữ liệu kiểm thử:** chưa tìm thấy corpus kịch bản và voice Xích Bích production trong các workspace. Fixture 80 shot và 80 WAV PCM sinh trong test xác minh đầy đủ logic/kích thước batch, nhưng cần chạy lại acceptance test khi corpus production được cung cấp.
+
 ## Kết quả kiểm thử gần nhất
 
 ```text
 python -m app --version: 0.1.0
-pytest: 26 passed
+pytest: 46 passed
 alembic check: No new upgrade operations detected
 PRAGMA journal_mode: wal
 PRAGMA busy_timeout: 5000
@@ -82,8 +112,9 @@ pip check: No broken requirements found
 ```
 
 Kiểm thử đã bao phủ migration bằng raw SQL, CRUD cho mọi ORM model, Series CRUD,
-CLI create series, Episode snapshot/pin/folder tree, rollback khi disk/database lỗi,
-reference thiếu version, constraints của chosen asset, invariant nhân vật và bảo mật đường dẫn.
+CLI create series, Episode snapshot/pin/folder tree, parser TXT/CSV/JSON, FFprobe với
+WAV thật, import/re-import 80 audio Asset, warning/failure rollback, constraints của
+chosen asset, invariant nhân vật và bảo mật đường dẫn.
 
 ## Git
 
@@ -95,6 +126,6 @@ reference thiếu version, constraints của chosen asset, invariant nhân vật
 
 ## Bước tiếp theo
 
-Phần C — Import, bắt đầu bằng Bước 8: Script parser.
+Phần D — Reference + Shot Manager, bắt đầu bằng Bước 11: Reference + Version CRUD.
 
-Chưa triển khai Bước 8 trở đi để bảo đảm đúng thứ tự dependency trong `build_order.txt`.
+Chưa triển khai Bước 11 trở đi để bảo đảm đúng thứ tự dependency trong `build_order.txt`.

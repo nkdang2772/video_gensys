@@ -6,8 +6,8 @@
 ## Tổng quan
 
 - Lỗi đang mở: **0**
-- Lỗi đã đóng: **8**
-- Test regression hiện tại: **26/26 pass**
+- Lỗi đã đóng: **11**
+- Test regression hiện tại: **46/46 pass**
 
 ## BUG-001 — SQLAlchemy không suy luận được kiểu `created_at`
 
@@ -88,6 +88,36 @@
 - **Nguyên nhân:** Thiếu validation trước khi tạo Episode.
 - **Cách sửa:** Mọi reference cần pin phải có `current_version > 0` và đúng `ReferenceVersion`; nếu thiếu, toàn bộ operation rollback và folder được dọn.
 - **Regression test:** Reference khai báo version nhưng thiếu record tương ứng bị từ chối; database và filesystem vẫn sạch.
+
+## BUG-009 — FFprobe chạy trực tiếp từ Conda package cache bị thiếu DLL
+
+- **Trạng thái:** Đã đóng
+- **Mức độ:** Trung bình, môi trường test
+- **Phát hiện:** Lượt test WAV thật đầu tiên.
+- **Triệu chứng:** FFprobe exit code `3221225781` và không có stderr.
+- **Nguyên nhân:** Executable trong thư mục package cache không có runtime DLL/PATH đầy đủ như executable trong Conda environment.
+- **Cách sửa:** Fixture dò executable theo PATH và các Conda environment, sau đó chạy `ffprobe -version` để chỉ chọn binary hoạt động; package cache chỉ là fallback.
+- **Regression test:** WAV ngắn, dài, hỏng, zero-duration và batch 80 WAV đều chạy bằng FFprobe thật.
+
+## BUG-010 — WAV hỏng đầu tiên chặn WAV hợp lệ cùng shot
+
+- **Trạng thái:** Đã đóng
+- **Mức độ:** Cao
+- **Phát hiện:** Rà soát failure path của voice auto-link.
+- **Triệu chứng:** Shot bị đánh dấu đã claim trước khi probe; candidate hợp lệ xuất hiện sau bị coi là duplicate và bỏ qua.
+- **Nguyên nhân:** Cập nhật `claimed_shots` quá sớm.
+- **Cách sửa:** Chỉ claim shot sau khi FFprobe thành công; candidate sau vẫn được thử nếu candidate trước hỏng.
+- **Regression test:** File `a_s001.wav` hỏng và `b_s001.wav` hợp lệ cho ra một Asset cùng warning rõ ràng cho file hỏng.
+
+## BUG-011 — Shot ID không an toàn có thể đi vào tên asset đích
+
+- **Trạng thái:** Đã đóng
+- **Mức độ:** Cao, liên quan bảo mật/path safety
+- **Phát hiện:** Rà soát đường dẫn copy voice.
+- **Triệu chứng:** Shot ID chứa separator hoặc `..` có thể tạo tên/path không hợp lệ.
+- **Nguyên nhân:** Parser và import service chưa giới hạn character set của shot ID.
+- **Cách sửa:** Chỉ chấp nhận chữ, số, `_` và `-`; import service kiểm tra lại dữ liệu database trước mọi thao tác copy.
+- **Regression test:** Parser từ chối `../s001`; voice import từ chối unsafe shot ID và không tạo file.
 
 ## Quy ước cập nhật
 
