@@ -4,8 +4,8 @@
 **Thư mục dự án:** `D:\video_gensystem`  
 **Phiên bản ứng dụng:** `0.1.0`  
 **Giai đoạn hiện tại:** Audit/revalidation tuần tự theo DoD nghiêm ngặt
-**Gate chính thức:** **Bước 1–10 — PASS; Bước 11 — đang revalidate**
-**Trạng thái:** Code lịch sử tồn tại đến Bước 30, nhưng chỉ Bước 1–10 đã đủ branch/PR/CI/merge để được đánh PASS chính thức. Bước 11 đã đạt test local nhưng chưa được đánh PASS trước khi có PR, CI xanh và merge; Bước 12 chưa được bắt đầu.
+**Gate chính thức:** **Bước 1–11 — PASS; Bước 12 — đang revalidate**
+**Trạng thái:** Code lịch sử tồn tại đến Bước 30, nhưng chỉ Bước 1–11 đã đủ branch/PR/CI/merge để được đánh PASS chính thức. Bước 12 đã đạt test local nhưng chưa được đánh PASS trước khi có PR, CI xanh và merge; Bước 13 chưa được bắt đầu.
 
 **Nguyên tắc phạm vi:** hệ thống là nền tảng sản xuất hình/voice/motion tổng quát cho mọi series. “Xích Bích”, “Tam Quốc” và các tên nhân vật lịch sử chỉ là test fixture/ví dụ acceptance, không phải domain được hard-code.
 
@@ -33,8 +33,10 @@
 - Bằng chứng Bước 9: WAV thật ngắn/dài/hỏng/zero-duration và test giả lập xác nhận subprocess nhận timeout mặc định đúng **30 giây**; targeted **5/5 pass**, full CI **105/105 pass**.
 - **Bước 10 PASS:** branch `codex/step10-revalidation`, PR [#10](https://github.com/nkdang2772/video_gensys/pull/10), 2/2 GitHub checks xanh và merge commit `85400a3` trên `main`.
 - Bằng chứng Bước 10: batch **80/80 WAV thật** link đúng; Asset audio chosen, duration, warning file sai tên, rollback, re-import version và filename mơ hồ; targeted **8/8 pass**, full CI **106/106 pass**.
-- **Bước 11 đang revalidate** trên branch `codex/step11-revalidation`: create Reference series/shared, add/list/get version, checksum, file managed bất biến và CLI v1/v2/v3 đều được kiểm tra. BUG-037 đã đóng; targeted **8/8 pass**, `alembic check` sạch, full regression **107/107 pass**; PR/CI/merge còn chờ.
-- Các mô tả “đã hoàn thành” bên dưới là inventory implementation lịch sử, không phải dấu check DoD cho Bước 11–30.
+- **Bước 11 PASS:** branch `codex/step11-revalidation`, PR [#11](https://github.com/nkdang2772/video_gensys/pull/11), 2/2 GitHub checks xanh và merge commit `4a14767` trên `main`.
+- Bằng chứng Bước 11: create Reference series/shared, add/list/get version, checksum, file managed bất biến, CLI v1/v2/v3; BUG-037 đã đóng; targeted **8/8 pass**, `alembic check` sạch, full CI **107/107 pass**.
+- **Bước 12 đang revalidate** trên branch `codex/step12-revalidation`: duplicate validation, sort canonical, `json.dumps(..., sort_keys=True)`, SHA-256, order independence, `[]` khác `[null]` và không mutate input đều được kiểm tra. Targeted **4/4 pass**, full regression **108/108 pass**; PR/CI/merge còn chờ.
+- Các mô tả “đã hoàn thành” bên dưới là inventory implementation lịch sử, không phải dấu check DoD cho Bước 12–30.
 
 ## Tech stack đã chốt
 
