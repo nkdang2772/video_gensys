@@ -7,8 +7,8 @@
 
 - Lỗi đang mở: **0**
 - Lỗi đã đóng: **40**
-- Test regression gần nhất trên `main`: **123/123 pass** (Bước 19, PR #20, merge commit `0c45792`)
-- Bước 20 trên branch `codex/step20-revalidation`: targeted **3/3 pass**, integration race lặp thêm **5/5 pass**, full regression **124/124 pass**.
+- Test regression gần nhất trên `main`: **124/124 pass** (Bước 20, PR #21, merge commit `5c08022`)
+- Gate chính thức: **Bước 1–20 PASS**; Bước 21 chưa bắt đầu revalidation.
 
 ## OBS-001 — Batch FFprobe 80 WAV từng thiếu file
 
