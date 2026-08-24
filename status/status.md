@@ -4,8 +4,8 @@
 **Thư mục dự án:** `D:\video_gensystem`  
 **Phiên bản ứng dụng:** `0.1.0`  
 **Giai đoạn hiện tại:** Audit/revalidation tuần tự theo DoD nghiêm ngặt
-**Gate chính thức:** **Bước 1–2 — PASS; Bước 3 — đang revalidate**
-**Trạng thái:** Code lịch sử tồn tại đến Bước 30, nhưng chỉ Bước 1–2 đã đủ branch/PR/CI/merge để được đánh PASS chính thức. Không bắt đầu Bước 4 trước khi Bước 3 có PR, CI xanh và merge.
+**Gate chính thức:** **Bước 1–3 — PASS; Bước 4 — đang revalidate**
+**Trạng thái:** Code lịch sử tồn tại đến Bước 30, nhưng chỉ Bước 1–3 đã đủ branch/PR/CI/merge để được đánh PASS chính thức. Không bắt đầu Bước 5 trước khi Bước 4 có PR, CI xanh và merge.
 
 **Nguyên tắc phạm vi:** hệ thống là nền tảng sản xuất hình/voice/motion tổng quát cho mọi series. “Xích Bích”, “Tam Quốc” và các tên nhân vật lịch sử chỉ là test fixture/ví dụ acceptance, không phải domain được hard-code.
 
@@ -17,9 +17,11 @@
 - Bằng chứng Bước 1: CLI thật `python -m app --version` trả `0.1.0`; option không hợp lệ trả non-zero và thông báo argparse; full CI **94/94 pass**.
 - **Bước 2 PASS:** branch `codex/step2-revalidation`, PR [#2](https://github.com/nkdang2772/video_gensys/pull/2), 2/2 GitHub checks xanh và merge commit `e2bd5e4` trên `main`.
 - Bằng chứng Bước 2: database mới chạy `alembic upgrade head` đến revision `0002`; raw query trả `journal_mode=wal`, `busy_timeout=5000`; happy/error targeted **3/3 pass**; full CI **95/95 pass**.
-- **Bước 3 đang revalidate** trên branch `codex/step3-revalidation`: SQLite CLI liệt kê đúng 10 bảng nghiệp vụ; partial unique index có đúng điều kiện `is_chosen = 1 AND shot_id IS NOT NULL`.
-- Targeted Bước 3 **2/2 pass**: happy path xác nhận toàn bộ cột mục 4 và raw insert một record/bảng; error path xác nhận foreign key, CHECK và partial unique constraint. Full regression **96/96 pass**.
-- Các mô tả “đã hoàn thành” bên dưới là inventory implementation lịch sử, không phải dấu check DoD cho Bước 3–30.
+- **Bước 3 PASS:** branch `codex/step3-revalidation`, PR [#3](https://github.com/nkdang2772/video_gensys/pull/3), 2/2 GitHub checks xanh và merge commit `4a11233` trên `main`.
+- Bằng chứng Bước 3: SQLite CLI liệt kê đúng 10 bảng; toàn bộ cột mục 4; raw insert một record/bảng; foreign key, CHECK và partial unique error paths; full CI **96/96 pass**.
+- **Bước 4 đang revalidate** trên branch `codex/step4-revalidation`: đồng bộ đủ 17 CHECK constraint từ migration vào ORM metadata; `alembic check` không phát hiện operation mới.
+- Targeted Bước 4 **6/6 pass** không warning; CRUD tạo/đọc/gọi xóa trực tiếp đủ 10 model; invariant nhân vật có error paths. Full regression **97/97 pass**.
+- Các mô tả “đã hoàn thành” bên dưới là inventory implementation lịch sử, không phải dấu check DoD cho Bước 4–30.
 
 ## Tech stack đã chốt
 

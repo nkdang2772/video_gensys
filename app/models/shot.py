@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING, Any
 
-from sqlalchemy import Boolean, ForeignKey, JSON, String, Text, UniqueConstraint, event
+from sqlalchemy import Boolean, CheckConstraint, ForeignKey, JSON, String, Text, UniqueConstraint, event
 from sqlalchemy.orm import Mapped, Session, mapped_column, relationship, validates
 
 from app.db import Base
@@ -18,7 +18,30 @@ if TYPE_CHECKING:
 
 class Shot(Base):
     __tablename__ = "shot"
-    __table_args__ = (UniqueConstraint("episode_id", "shot_id", name="uq_shot_episode_shot_id"),)
+    __table_args__ = (
+        UniqueConstraint("episode_id", "shot_id", name="uq_shot_episode_shot_id"),
+        CheckConstraint(
+            "audio_duration_sec IS NULL OR audio_duration_sec >= 0",
+            name="ck_shot_audio_duration",
+        ),
+        CheckConstraint(
+            "head_padding_sec >= 0 AND tail_padding_sec >= 0",
+            name="ck_shot_padding",
+        ),
+        CheckConstraint(
+            "motion_intent IN ('static','pan','parallax','sprite','map','generative')",
+            name="ck_shot_motion_intent",
+        ),
+        CheckConstraint(
+            "motion_provider IN ('none','internal_kenburns','fusion_parallax','sprite_local',"
+            "'map_local','wan_local','veo_cloud')",
+            name="ck_shot_motion_provider",
+        ),
+        CheckConstraint(
+            "motion_fill_policy IN ('extend','loop','split')",
+            name="ck_shot_fill_policy",
+        ),
+    )
 
     id: Mapped[int] = mapped_column(primary_key=True)
     episode_id: Mapped[int] = mapped_column(ForeignKey("episode.id", ondelete="CASCADE"), nullable=False)

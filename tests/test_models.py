@@ -3,7 +3,7 @@ from __future__ import annotations
 from datetime import datetime, timezone
 
 import pytest
-from sqlalchemy import func, select
+from sqlalchemy import CheckConstraint, func, select
 from sqlalchemy.exc import IntegrityError
 
 from app.db import Base
@@ -33,15 +33,35 @@ ALL_MODELS = (
     SimpleQaNote,
 )
 
+EXPECTED_CHECK_CONSTRAINTS = {
+    "ck_reference_type",
+    "ck_reference_scope",
+    "ck_reference_scope_owner",
+    "ck_reference_version_positive",
+    "ck_shot_audio_duration",
+    "ck_shot_padding",
+    "ck_shot_motion_intent",
+    "ck_shot_motion_provider",
+    "ck_shot_fill_policy",
+    "ck_asset_type",
+    "ck_asset_version_positive",
+    "ck_asset_duration",
+    "ck_job_status",
+    "ck_job_priority",
+    "ck_job_progress",
+    "ck_job_attempts",
+    "ck_job_credit_type",
+}
+
 
 def build_graph(tmp_path):
     now = datetime.now(timezone.utc)
-    series = Series(slug="tam-quoc", name="Tam Quốc")
+    series = Series(slug="demo-series", name="Demo Series")
     episode = Episode(
         series=series,
         episode_number=1,
-        slug="xich-bich",
-        title="Xích Bích",
+        slug="episode-one",
+        title="Episode One",
         effective_resolution="1920x1080",
         effective_fps=30,
         effective_aspect_ratio="16:9",
@@ -49,8 +69,8 @@ def build_graph(tmp_path):
     )
     scene = Scene(episode=episode, scene_number=1, order_index=1)
     reference = Reference(
-        slug="tao-thao",
-        name="Tào Tháo",
+        slug="hero",
+        name="Hero",
         reference_type="character",
         scope="series_specific",
         owning_series=series,
@@ -58,7 +78,7 @@ def build_graph(tmp_path):
     reference_version = ReferenceVersion(
         reference=reference,
         version=1,
-        file_path="references/characters/tao_thao_v1.png",
+        file_path="references/characters/hero_v1.png",
         checksum="abc",
         created_at=now,
     )
@@ -67,8 +87,8 @@ def build_graph(tmp_path):
         scene=scene,
         shot_id="s001",
         order_index=1,
-        characters_json=["tao_thao"],
-        primary_character_id="tao_thao",
+        characters_json=["hero"],
+        primary_character_id="hero",
     )
     pin = EpisodeReferencePin(episode=episode, reference=reference, reference_version=reference_version)
     asset = Asset(
@@ -79,7 +99,7 @@ def build_graph(tmp_path):
         is_chosen=True,
         file_path="images/chosen/s001_image_v01_chosen.png",
     )
-    job = Job(episode=episode, shot=shot, job_type="image_generate")
+    job = Job(episode=episode, shot=shot, job_type="image_gen")
     note = SimpleQaNote(episode=episode, shot=shot, asset=asset, category="content", note="Check face")
     return series, episode, scene, shot, reference, reference_version, pin, asset, job, note
 
@@ -92,10 +112,21 @@ def test_create_read_delete_every_model(session, tmp_path) -> None:
     for model in ALL_MODELS:
         assert session.scalar(select(func.count()).select_from(model)) >= 1
 
-    session.delete(records[0])
+    for record in reversed(records):
+        session.delete(record)
     session.commit()
     for model in ALL_MODELS:
         assert session.scalar(select(func.count()).select_from(model)) == 0
+
+
+def test_orm_metadata_contains_all_migration_check_constraints() -> None:
+    actual = {
+        constraint.name
+        for table in Base.metadata.tables.values()
+        for constraint in table.constraints
+        if isinstance(constraint, CheckConstraint)
+    }
+    assert actual == EXPECTED_CHECK_CONSTRAINTS
 
 
 def test_primary_character_must_belong_to_characters() -> None:

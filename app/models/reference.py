@@ -3,7 +3,7 @@ from __future__ import annotations
 from datetime import datetime
 from typing import TYPE_CHECKING, Any
 
-from sqlalchemy import Boolean, DateTime, ForeignKey, JSON, String, Text, UniqueConstraint
+from sqlalchemy import Boolean, CheckConstraint, DateTime, ForeignKey, JSON, String, Text, UniqueConstraint
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.db import Base
@@ -16,6 +16,21 @@ if TYPE_CHECKING:
 
 class Reference(TimestampMixin, Base):
     __tablename__ = "reference"
+    __table_args__ = (
+        CheckConstraint(
+            "reference_type IN ('character','style','location','prop','map')",
+            name="ck_reference_type",
+        ),
+        CheckConstraint(
+            "scope IN ('series_specific','shared_across_series')",
+            name="ck_reference_scope",
+        ),
+        CheckConstraint(
+            "(scope = 'series_specific' AND owning_series_id IS NOT NULL) OR "
+            "(scope = 'shared_across_series' AND owning_series_id IS NULL)",
+            name="ck_reference_scope_owner",
+        ),
+    )
 
     id: Mapped[int] = mapped_column(primary_key=True)
     slug: Mapped[str] = mapped_column(String(255), unique=True, nullable=False)
@@ -37,7 +52,10 @@ class Reference(TimestampMixin, Base):
 
 class ReferenceVersion(Base):
     __tablename__ = "reference_version"
-    __table_args__ = (UniqueConstraint("reference_id", "version", name="uq_reference_version"),)
+    __table_args__ = (
+        UniqueConstraint("reference_id", "version", name="uq_reference_version"),
+        CheckConstraint("version > 0", name="ck_reference_version_positive"),
+    )
 
     id: Mapped[int] = mapped_column(primary_key=True)
     reference_id: Mapped[int] = mapped_column(ForeignKey("reference.id", ondelete="CASCADE"), nullable=False)

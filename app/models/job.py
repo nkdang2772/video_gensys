@@ -3,7 +3,7 @@ from __future__ import annotations
 from datetime import datetime
 from typing import TYPE_CHECKING, Any
 
-from sqlalchemy import ForeignKey, JSON, String, Text
+from sqlalchemy import CheckConstraint, ForeignKey, JSON, String, Text
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.db import Base
@@ -16,6 +16,28 @@ if TYPE_CHECKING:
 
 class Job(Base):
     __tablename__ = "job"
+    __table_args__ = (
+        CheckConstraint(
+            "status IN ('queued','running','done','failed','cancelled')",
+            name="ck_job_status",
+        ),
+        CheckConstraint(
+            "priority IN ('high','normal','image','gpu','overnight','export')",
+            name="ck_job_priority",
+        ),
+        CheckConstraint(
+            "progress_percent >= 0 AND progress_percent <= 100",
+            name="ck_job_progress",
+        ),
+        CheckConstraint(
+            "attempt_count >= 0 AND max_attempts > 0",
+            name="ck_job_attempts",
+        ),
+        CheckConstraint(
+            "cost_credit_type IS NULL OR cost_credit_type IN ('veo','imagen','other')",
+            name="ck_job_credit_type",
+        ),
+    )
 
     id: Mapped[int] = mapped_column(primary_key=True)
     episode_id: Mapped[int] = mapped_column(ForeignKey("episode.id", ondelete="CASCADE"), nullable=False)
@@ -41,4 +63,3 @@ class Job(Base):
 
     episode: Mapped["Episode"] = relationship(back_populates="jobs")
     shot: Mapped["Shot | None"] = relationship(back_populates="jobs")
-
