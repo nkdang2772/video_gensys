@@ -1,13 +1,13 @@
 # Nhật ký lỗi Video GenSystem
 
 **Cập nhật:** 2026-08-24  
-**Phạm vi:** Phần A — Foundation
+**Phạm vi:** Toàn dự án
 
 ## Tổng quan
 
 - Lỗi đang mở: **0**
-- Lỗi đã đóng: **19**
-- Test regression hiện tại: **68/68 pass**
+- Lỗi đã đóng: **21**
+- Test regression hiện tại: **75/75 pass**
 
 ## BUG-001 — SQLAlchemy không suy luận được kiểu `created_at`
 
@@ -198,6 +198,26 @@
 - **Nguyên nhân:** Staging loop chưa kiểm tra filename case-insensitive.
 - **Cách sửa:** Track normalized basename và từ chối duplicate trước mọi overwrite.
 - **Regression test:** Logic staging dùng safe basename và explicit duplicate error; voice service vẫn xử lý warning/rollback như trước.
+
+## BUG-020 — Raw SQLite datetime adapter deprecated trên Python 3.12
+
+- **Trạng thái:** Đã đóng
+- **Mức độ:** Cao, worker blocker
+- **Phát hiện:** Chạy queue test với `-W error`.
+- **Triệu chứng:** Atomic claim fail khi bind trực tiếp timezone-aware `datetime` vào raw sqlite3 cursor.
+- **Nguyên nhân:** Default datetime adapter của Python sqlite3 đã deprecated từ Python 3.12.
+- **Cách sửa:** Bind timestamp UTC thành chuỗi ISO theo đúng định dạng SQLite/SQLAlchemy, không dùng adapter deprecated.
+- **Regression test:** Tất cả claim/concurrent/recovery test chạy dưới `-W error`.
+
+## BUG-021 — Output không hợp lệ có thể để Job mắc ở running
+
+- **Trạng thái:** Đã đóng
+- **Mức độ:** Cao, queue lifecycle
+- **Phát hiện:** Rà soát failure path của worker sau handler.
+- **Triệu chứng:** Nếu handler trả payload không JSON-serializable, `mark_job_done` raise ngoài exception handler và Job còn running.
+- **Nguyên nhân:** Khối try ban đầu chỉ bao quanh handler, không bao quanh bước hoàn tất Job.
+- **Cách sửa:** Đưa cả handler và `mark_job_done` vào cùng failure boundary; lỗi completion chuyển Job sang failed và tăng attempt.
+- **Regression test:** Handler trả set trong output bị đánh failed, tăng attempt; stale recovery vẫn là lớp bảo vệ cuối khi process chết đột ngột.
 
 ## Quy ước cập nhật
 

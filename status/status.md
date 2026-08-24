@@ -3,8 +3,8 @@
 **Cập nhật:** 2026-08-24  
 **Thư mục dự án:** `D:\video_gensystem`  
 **Phiên bản ứng dụng:** `0.1.0`  
-**Giai đoạn hiện tại:** Phần E — UI cơ bản
-**Trạng thái:** Bước 15–18 hoàn thành
+**Giai đoạn hiện tại:** Phần F — Job Queue
+**Trạng thái:** Bước 19–21 hoàn thành
 
 **Nguyên tắc phạm vi:** hệ thống là nền tảng sản xuất hình/voice/motion tổng quát cho mọi series. “Xích Bích”, “Tam Quốc” và các tên nhân vật lịch sử chỉ là test fixture/ví dụ acceptance, không phải domain được hard-code.
 
@@ -166,11 +166,32 @@
 - AppTest end-to-end dùng tên tổng quát: tạo Series, Episode, import script hai shot, link hai WAV thật, mở Shot Manager và Reference Library.
 - Các ví dụ “Tam Quốc”, “Xích Bích” trong DoD có thể nhập trực tiếp qua UI nhưng không xuất hiện trong logic production.
 
+### Bước 19 — Job model + enqueue
+
+- Queue service hỗ trợ enqueue, get status và list queued theo Episode/job type.
+- Validate job type, priority, JSON payload, max attempts và Shot phải thuộc đúng Episode.
+- Thứ tự queue cố định: high, normal, image, gpu, overnight, export; FIFO theo created time và ID trong cùng priority.
+
+### Bước 20 — Atomic worker claim
+
+- Mỗi lần claim mở DBAPI connection riêng, dùng `BEGIN IMMEDIATE`, update running/worker PID rồi commit ngay.
+- Handler chạy hoàn toàn ngoài claim transaction; success/failure được ghi bằng transaction ngắn riêng.
+- Retry SQLITE_BUSY/SQLITE_LOCKED bằng exponential backoff có jitter và giới hạn số lần thử.
+- Poll loop hỗ trợ filter job type, stop event, finite job count và exit khi queue rỗng.
+- Integration test hai worker cùng xử lý 20 job; đủ 20 ID duy nhất và cả hai worker đều thực sự nhận job.
+
+### Bước 21 — Stale job recovery
+
+- Timeout mặc định 30 phút, có thể cấu hình bằng `timedelta`.
+- Job stale được đánh failed/error stale, tăng attempt và bỏ worker PID.
+- Job failed còn attempt tự quay về queued; job đạt max attempts giữ failed.
+- Integration test mô phỏng worker chết sau claim và xác nhận job được claim lại bởi worker khác.
+
 ## Kết quả kiểm thử gần nhất
 
 ```text
 python -m app --version: 0.1.0
-pytest: 68 passed
+pytest: 75 passed
 alembic check: No new upgrade operations detected
 PRAGMA journal_mode: wal
 PRAGMA busy_timeout: 5000
@@ -183,7 +204,8 @@ CLI create series, Episode snapshot/pin/folder tree, parser TXT/CSV/JSON, FFprob
 WAV thật, import/re-import 80 audio Asset, ReferenceVersion immutable/checksum,
 character batch key, bulk update 20 Shot, waveform/silence/cắt WAV 5 phút,
 transactional script import và Streamlit AppTest end-to-end, warning/failure rollback,
-constraints của chosen asset và bảo mật đường dẫn.
+constraints của chosen asset, bảo mật đường dẫn, queue priority, SQLite lock retry,
+hai worker claim đồng thời và stale recovery.
 
 ## Git
 
@@ -195,6 +217,6 @@ constraints của chosen asset và bảo mật đường dẫn.
 
 ## Bước tiếp theo
 
-Phần F — Job Queue, bắt đầu bằng Bước 19: Job model + enqueue.
+Phần G — Image generation, bắt đầu bằng Bước 22 theo `build_order.txt`.
 
-Chưa triển khai Bước 19 trở đi để bảo đảm đúng thứ tự dependency trong `build_order.txt`.
+Chưa triển khai Bước 22 trở đi để bảo đảm đúng thứ tự dependency trong `build_order.txt`.

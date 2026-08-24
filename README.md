@@ -59,9 +59,14 @@ streamlit run streamlit_app.py
 
 The five MVP screens are Series, Episodes, Import, Shot Manager, and References. Local path inputs are available for desktop workflows; upload controls remain available for scripts, multiple WAV files, and reference versions.
 
+## SQLite job queue
+
+Queue operations live under `app.queue`. Jobs are ordered by `high`, `normal`, `image`, `gpu`, `overnight`, then `export`, with FIFO ordering inside each priority. Worker claims use a dedicated SQLite connection and `BEGIN IMMEDIATE`; job processing starts only after the claim transaction commits. Stale jobs default to a 30-minute timeout and are requeued while attempts remain.
+
 ## Foundation guarantees
 
 - Every SQLite connection enables foreign keys, requests WAL mode, and sets a 5000 ms busy timeout.
 - Asset versions are immutable by convention and only one chosen asset may exist per shot/type.
 - Episode asset paths are relative, normalized with `/`, and may not escape the episode root.
 - Shot character invariants are validated in the application layer.
+- Concurrent workers atomically claim each job at most once and retry SQLite lock contention with exponential backoff plus jitter.
