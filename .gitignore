@@ -5,6 +5,7 @@ __pycache__/
 .pytest_cache/
 .coverage
 htmlcov/
+live_test/
 .env
 data/*.db
 data/*.db-*

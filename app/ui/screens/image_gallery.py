@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+import os
 from pathlib import Path
 
 import streamlit as st
@@ -36,7 +37,11 @@ def _provider_config(provider: str, prefix: str) -> dict:
             "Flow bridge port", min_value=1, max_value=65535, value=8765, key=f"{prefix}_port"
         ),
         "downloads_root": st.text_input(
-            "Chrome Downloads folder", value=str(Path.home() / "Downloads"), key=f"{prefix}_downloads"
+            "Chrome Downloads folder",
+            value=os.getenv(
+                "VIDEO_GENSYSTEM_FLOW_DOWNLOADS_ROOT", str(Path.home() / "Downloads")
+            ),
+            key=f"{prefix}_downloads",
         ),
         "cost_credit_amount": st.number_input(
             "Estimated Flow credits", min_value=0.0, value=0.0, key=f"{prefix}_cost"

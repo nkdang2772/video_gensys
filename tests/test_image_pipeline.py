@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import base64
+import io
 import json
 import socket
 import threading
@@ -9,6 +10,7 @@ from pathlib import Path
 from urllib.error import URLError
 from urllib.request import Request, urlopen
 
+from PIL import Image
 from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
@@ -105,9 +107,11 @@ def test_all_three_image_provider_adapters_generate_png(tmp_path, monkeypatch) -
                         continue
                     task = json.loads(response.read().decode())
                 observed_task.update(task)
-                downloaded = downloads_root / Path(task["download_path"])
+                downloaded = (downloads_root / Path(task["download_path"])).with_suffix(".jpg")
                 downloaded.parent.mkdir(parents=True)
-                downloaded.write_bytes(PNG_BYTES)
+                jpeg = io.BytesIO()
+                Image.new("RGB", (2, 2), (32, 96, 160)).save(jpeg, format="JPEG")
+                downloaded.write_bytes(jpeg.getvalue())
                 result = Request(
                     f"http://127.0.0.1:{bridge_port}/v1/tasks/{task['id']}/result",
                     data=json.dumps({"ok": True, "download_path": task["download_path"]}).encode(),
@@ -138,10 +142,11 @@ def test_all_three_image_provider_adapters_generate_png(tmp_path, monkeypatch) -
     )
     extension_thread.join(timeout=5)
     assert not extension_thread.is_alive()
-    assert google_output.read_bytes() == PNG_BYTES
+    assert google_output.read_bytes().startswith(b"\x89PNG\r\n\x1a\n")
     assert observed_task["prompt"] == "A generic scene"
     assert observed_task["references"][0]["data_url"].startswith("data:image/png;base64,")
     assert not (downloads_root / observed_task["download_path"]).exists()
+    assert not (downloads_root / Path(observed_task["download_path"])).with_suffix(".jpg").exists()
 
     comfy_requests = []
 

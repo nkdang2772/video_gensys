@@ -4,7 +4,7 @@
 **Thư mục dự án:** `D:\video_gensystem`  
 **Phiên bản ứng dụng:** `0.1.0`  
 **Giai đoạn hiện tại:** Phần G — Image generation
-**Trạng thái:** Bước 22–24 hoàn thành về code/test; live Google Flow/ComfyUI acceptance chờ browser/service
+**Trạng thái:** Bước 22–24 hoàn thành về code/test; Google Flow live đã xác nhận, ComfyUI live còn chờ server/model
 
 **Nguyên tắc phạm vi:** hệ thống là nền tảng sản xuất hình/voice/motion tổng quát cho mọi series. “Xích Bích”, “Tam Quốc” và các tên nhân vật lịch sử chỉ là test fixture/ví dụ acceptance, không phải domain được hard-code.
 
@@ -20,6 +20,7 @@
 - Alembic cho database migration.
 - Pytest cho unit/integration test nền tảng.
 - NumPy và Matplotlib cho xử lý PCM/waveform local.
+- Pillow cho chuẩn hoá ảnh live JPEG/WebP từ Google Flow thành PNG managed.
 
 ## Hạng mục đã hoàn thành
 
@@ -217,9 +218,12 @@
 ### Giới hạn live provider
 
 - Manual provider đã chạy end-to-end bằng PNG thật.
-- Google Flow bridge đã qua integration test localhost thật với extension simulator; không gọi dịch vụ ngoài và không phát sinh credit.
+- Google Flow bridge đã chạy live bằng tài khoản Pro và extension thật: prompt được nhận, Flow sinh ảnh, extension tải file về máy và provider tạo PNG managed hợp lệ.
+- Live artifact: `live_test/google_flow_live.png`, 1376×768, 1,628,786 byte, SHA-256 `70ab37b201b8a8ec793bf7a67c06c75d642984ce3469dc573bd133cfabbf4a87`.
+- Chrome của máy hiện lưu download tại `D:\Download`; cấu hình bằng `VIDEO_GENSYSTEM_FLOW_DOWNLOADS_ROOT` hoặc trường Chrome Downloads folder trong UI.
+- Flow trả ảnh live dưới MIME JPEG nên Chrome tự đổi `.png` thành `.jpg`; provider đã hỗ trợ `.png/.jpg/.jpeg/.webp` và chuẩn hoá về PNG.
+- Một lượt live tiếp theo đã gửi prompt đúng nhưng cả bốn variation bị Google Flow báo “Không thành công” ở 13%; đây là lỗi dịch vụ/model bên ngoài và không làm hỏng bridge/queue local.
 - Extension nguồn được quản lý tại `integrations/h2dev_flow_extension` và sẽ được đồng bộ với bản người dùng đang dùng.
-- Live acceptance cần reload extension, mở một project Flow đã đăng nhập, mở side panel bridge và giữ DevTools đóng. Hiện không có tab Flow mở trong browser đã kết nối nên chưa tuyên bố đã sinh live.
 - ComfyUI live acceptance vẫn cần server local đang chạy với model/workflow tương thích.
 
 ## Kết quả kiểm thử gần nhất

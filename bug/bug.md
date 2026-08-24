@@ -6,7 +6,7 @@
 ## Tổng quan
 
 - Lỗi đang mở: **0**
-- Lỗi đã đóng: **24**
+- Lỗi đã đóng: **25**
 - Test regression hiện tại: **82/82 pass**
 
 ## BUG-001 — SQLAlchemy không suy luận được kiểu `created_at`
@@ -248,6 +248,17 @@
 - **Nguyên nhân:** Diễn giải “Nano Banana qua Gemini API” theo REST API mà chưa đối chiếu tool thực tế của người dùng.
 - **Cách sửa:** Thay toàn bộ Google runtime bằng localhost bridge có token giữa Python worker và Chrome extension; provider ID đổi thành `google_flow`.
 - **Regression test:** Integration test mở bridge thật, extension simulator lấy prompt/reference, tạo download theo task ID và trả PNG; không có request Gemini.
+
+## BUG-025 — Chrome đổi đuôi ảnh Flow và Downloads root không trùng mặc định
+
+- **Trạng thái:** Đã đóng
+- **Mức độ:** Cao, chặn live acceptance
+- **Phát hiện:** Bài test Google Flow live bằng tài khoản Pro và extension thật.
+- **Triệu chứng:** Flow sinh và extension tải ảnh thành công nhưng provider báo không tìm thấy `C:\Users\khoad\Downloads\...png`.
+- **Nguyên nhân:** Chrome của máy lưu tại `D:\Download`; ảnh Flow có MIME JPEG nên Chrome tự đổi tên đích `.png` thành `.jpg`.
+- **Cách sửa:** Thêm cấu hình/env `VIDEO_GENSYSTEM_FLOW_DOWNLOADS_ROOT`; provider chỉ dò các suffix ảnh cho phép trong Downloads root đã resolve, chuyển JPEG/WebP sang PNG bằng Pillow và vẫn kiểm tra path containment/no-overwrite.
+- **Regression test:** Extension simulator ghi JPEG với đuôi `.jpg` dù task yêu cầu `.png`; provider tìm đúng file, tạo PNG hợp lệ và cleanup source. Full suite 82/82 pass.
+- **Live verification:** Artifact `live_test/google_flow_live.png` là PNG 1376×768, SHA-256 `70ab37b201b8a8ec793bf7a67c06c75d642984ce3469dc573bd133cfabbf4a87`.
 
 ## Quy ước cập nhật
 

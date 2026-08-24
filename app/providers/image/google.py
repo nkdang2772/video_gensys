@@ -12,6 +12,8 @@ from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 from typing import Any
 
+from PIL import Image, UnidentifiedImageError
+
 from app.providers.image.base import (
     ImageProvider,
     ProviderError,
@@ -23,6 +25,41 @@ from app.providers.image.base import (
 FLOW_BRIDGE_TOKEN_ENV = "VIDEO_GENSYSTEM_FLOW_BRIDGE_TOKEN"
 DEFAULT_BRIDGE_PORT = 8765
 MAX_RESULT_BYTES = 1024 * 1024
+FLOW_DOWNLOADS_ROOT_ENV = "VIDEO_GENSYSTEM_FLOW_DOWNLOADS_ROOT"
+FLOW_DOWNLOAD_SUFFIXES = (".png", ".jpg", ".jpeg", ".webp")
+
+
+def _find_bridge_download(downloads_root: Path, expected: Path) -> Path:
+    """Find the file Chrome saved, including MIME-driven extension rewrites."""
+    base = (downloads_root / expected).resolve()
+    try:
+        base.relative_to(downloads_root)
+    except ValueError as exc:
+        raise ProviderError("Google Flow download escaped Downloads root") from exc
+    for suffix in FLOW_DOWNLOAD_SUFFIXES:
+        candidate = base.with_suffix(suffix)
+        if candidate.is_file():
+            return candidate
+    raise ProviderError(f"Google Flow download was not found: {base}")
+
+
+def _copy_bridge_image_as_png(source: Path, destination: Path) -> Path:
+    if source.suffix.lower() == ".png":
+        return copy_png_atomic(source, destination)
+    temporary = destination.with_name(f".{destination.name}.{os.getpid()}.converted")
+    if destination.exists():
+        raise ProviderError(f"Provider output already exists: {destination}")
+    try:
+        try:
+            with Image.open(source) as image:
+                image.load()
+                mode = "RGBA" if "A" in image.getbands() else "RGB"
+                image.convert(mode).save(temporary, format="PNG")
+        except (OSError, UnidentifiedImageError) as exc:
+            raise ProviderError(f"Google Flow output is not a supported image: {source}") from exc
+        return copy_png_atomic(temporary, destination)
+    finally:
+        temporary.unlink(missing_ok=True)
 
 
 class _BridgeState:
@@ -142,7 +179,11 @@ class GoogleFlowImageProvider(ImageProvider):
         if timeout <= 0:
             raise ProviderError("timeout_sec must be positive")
         downloads_root = Path(
-            str(config.get("downloads_root") or (Path.home() / "Downloads"))
+            str(
+                config.get("downloads_root")
+                or os.getenv(FLOW_DOWNLOADS_ROOT_ENV)
+                or (Path.home() / "Downloads")
+            )
         ).expanduser().resolve()
         task_id = uuid.uuid4().hex
         relative_download = Path("video_gensystem_bridge") / f"{task_id}.png"
@@ -189,14 +230,8 @@ class GoogleFlowImageProvider(ImageProvider):
             returned_path = result.get("download_path")
             if returned_path != relative_download.as_posix():
                 raise ProviderError("Google Flow extension returned an unexpected download path")
-            downloaded = (downloads_root / relative_download).resolve()
-            try:
-                downloaded.relative_to(downloads_root)
-            except ValueError as exc:
-                raise ProviderError("Google Flow download escaped Downloads root") from exc
-            if not downloaded.is_file():
-                raise ProviderError(f"Google Flow download was not found: {downloaded}")
-            destination = copy_png_atomic(downloaded, output_path(config))
+            downloaded = _find_bridge_download(downloads_root, relative_download)
+            destination = _copy_bridge_image_as_png(downloaded, output_path(config))
             if bool(config.get("cleanup_bridge_download", True)):
                 downloaded.unlink(missing_ok=True)
             return destination

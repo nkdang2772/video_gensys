@@ -66,6 +66,7 @@ Queue operations live under `app.queue`. Jobs are ordered by `high`, `normal`, `
 ## Image providers
 
 - Google image generation uses the bundled `integrations/h2dev_flow_extension` to control the user's signed-in Google Flow UI. It does not call Gemini API. Set `VIDEO_GENSYSTEM_FLOW_BRIDGE_TOKEN`, reload the unpacked extension, then enable its localhost bridge using the same token.
+- If Chrome uses a custom Downloads directory, set `VIDEO_GENSYSTEM_FLOW_DOWNLOADS_ROOT` to that absolute path (for example `D:\Download`). Flow may serve JPEG/WebP even when the requested filename ends in `.png`; the provider converts these downloads to managed PNG assets.
 - ComfyUI defaults to `http://127.0.0.1:8188` and accepts a workflow exported in API format. Use `{{PROMPT}}` in the workflow or configure a prompt node; map pinned references to LoadImage nodes with `reference_image_nodes`.
 - Manual fallback copies an existing PNG into managed episode storage without overwriting the source.
 
