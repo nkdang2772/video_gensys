@@ -16,6 +16,10 @@ class FFprobeError(RuntimeError):
     pass
 
 
+class FFprobeTimeoutError(FFprobeError):
+    pass
+
+
 @dataclass(frozen=True, slots=True)
 class AudioMetadata:
     duration_sec: float
@@ -101,7 +105,7 @@ def probe_audio(
             check=False,
         )
     except subprocess.TimeoutExpired as exc:
-        raise FFprobeError(f"ffprobe timed out after {timeout_sec:g} seconds") from exc
+        raise FFprobeTimeoutError(f"ffprobe timed out after {timeout_sec:g} seconds") from exc
     except OSError as exc:
         raise FFprobeError(f"Could not execute ffprobe: {exc}") from exc
     if result.returncode != 0:
@@ -179,7 +183,7 @@ def probe_video(
             check=False,
         )
     except subprocess.TimeoutExpired as exc:
-        raise FFprobeError(f"ffprobe timed out after {timeout_sec:g} seconds") from exc
+        raise FFprobeTimeoutError(f"ffprobe timed out after {timeout_sec:g} seconds") from exc
     except OSError as exc:
         raise FFprobeError(f"Could not execute ffprobe: {exc}") from exc
     if result.returncode != 0:

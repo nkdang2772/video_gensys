@@ -6,16 +6,16 @@
 ## Tổng quan
 
 - Lỗi đang mở: **0**
-- Lỗi đã đóng: **38**
+- Lỗi đã đóng: **39**
 - Test regression gần nhất trên `main`: **115/115 pass** (Bước 15, PR #15, merge commit `641da86`)
-- Gate kế tiếp: Bước 16 chưa bắt đầu; không có lỗi đang mở.
+- Bước 16 trên branch `codex/step16-revalidation`: targeted liên quan **18/18 pass**, full regression **117/117 pass**.
 
-## OBS-001 — Một lượt batch FFprobe 80 WAV thiếu hai file, chưa tái hiện
+## OBS-001 — Batch FFprobe 80 WAV từng thiếu file
 
-- **Trạng thái:** Theo dõi, chưa xác nhận là bug production
+- **Trạng thái:** Đã xác nhận và xử lý tại BUG-039
 - **Phát hiện:** Lượt full regression đầu của Bước 8 import 78/80 WAV và báo thiếu audio cho `s060` cùng một shot khác.
 - **Đối chứng:** Test batch 80 WAV chạy riêng pass; lặp tiếp 3/3 lần đều pass 80/80; full suite Bước 8 pass 104/104. Revalidation Bước 9 pass WAV thật ngắn/dài/hỏng/zero-duration, timeout 30 giây và full suite 105/105. Revalidation Bước 10 tiếp tục import đủ 80/80 WAV và full suite 106/106; hiện tượng vẫn không tái hiện.
-- **Xử lý hiện tại:** Không sửa production logic khi chưa có reproduction hoặc warning FFprobe cụ thể; giữ sự cố trong nhật ký để đối chiếu nếu tái diễn.
+- **Xử lý hiện tại:** Revalidation Bước 16 tái hiện 79/80 chosen audio, thiếu `s011`; đã bổ sung retry chỉ cho timeout FFprobe và giữ warning nếu hết số lần thử.
 
 ## BUG-032 — `to_relative()` chấp nhận input tương đối phụ thuộc working directory
 
@@ -397,6 +397,16 @@
 - **Nguyên nhân:** `_normalize_characters()` gọi `list(value)` trước khi kiểm tra input là list/tuple; Python coi chuỗi là iterable ký tự.
 - **Cách sửa:** Từ chối mọi input không phải `list` hoặc `tuple` trước khi sao chép/validate nội dung.
 - **Regression test:** Truyền chuỗi phải raise `ValueError` và không tạo Shot. Targeted 6/6, full 109/109.
+
+## BUG-039 — FFprobe timeout thoáng qua làm batch UI chỉ import 79/80 WAV
+
+- **Trạng thái:** Đã đóng
+- **Mức độ:** Cao, acceptance/import reliability
+- **Phát hiện:** Revalidation Bước 16 bằng AppTest import 80 WAV thật.
+- **Triệu chứng:** Một lượt AppTest vượt timeout 20 giây; DB còn lại có 80 Shot nhưng chỉ 79 chosen audio, thiếu `s011`. Lượt retry sau đó đạt 80/80.
+- **Nguyên nhân:** Một FFprobe subprocess có thể timeout thoáng qua; Voice import coi mọi `FFprobeError` là lỗi cuối của file và tiếp tục batch, nên một shot hợp lệ bị thiếu audio.
+- **Cách sửa:** Thêm `FFprobeTimeoutError` riêng; Voice import retry tối đa 2 lần chỉ cho timeout. File hỏng và lỗi metadata vẫn không retry, vẫn sinh warning rõ ràng.
+- **Regression test:** Mock timeout lần đầu và metadata hợp lệ lần hai phải tạo một chosen Asset, không warning; AppTest UI import 80/80 WAV. Targeted liên quan 18/18, full 117/117.
 
 ## Quy ước cập nhật
 
