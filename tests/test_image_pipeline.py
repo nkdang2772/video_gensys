@@ -295,6 +295,36 @@ def test_image_worker_retries_provider_timeout_and_uses_pinned_version(engine, t
         assert session.scalar(select(func.count()).select_from(Asset)) == 1
 
 
+def test_image_worker_stops_after_provider_timeout_attempt_limit(engine, tmp_path) -> None:
+    with Session(engine) as session, session.begin():
+        _episode_record, shots = _episode(session, tmp_path)
+        job = enqueue_image_job(
+            session,
+            shot_id=shots[0].id,
+            provider="manual",
+            max_attempts=3,
+        )
+        job_id = job.id
+
+    provider = RecordingProvider(timeout_calls=99)
+    attempts = run_image_worker(
+        engine,
+        library_root=tmp_path / "library",
+        providers={"manual": provider},
+        exit_when_empty=True,
+    )
+
+    assert attempts == 3
+    assert provider.calls == 3
+    with Session(engine) as session:
+        failed = session.get(Job, job_id)
+        assert failed is not None
+        assert failed.status == "failed"
+        assert failed.attempt_count == failed.max_attempts == 3
+        assert "ProviderTimeoutError" in (failed.error_message or "")
+        assert session.scalar(select(func.count()).select_from(Asset)) == 0
+
+
 def test_explicit_empty_provider_registry_never_uses_defaults(engine, tmp_path, monkeypatch) -> None:
     with Session(engine) as session, session.begin():
         _episode_record, shots = _episode(session, tmp_path)
