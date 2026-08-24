@@ -4,8 +4,8 @@
 **Thư mục dự án:** `D:\video_gensystem`  
 **Phiên bản ứng dụng:** `0.1.0`  
 **Giai đoạn hiện tại:** Audit/revalidation tuần tự theo DoD nghiêm ngặt
-**Gate chính thức:** **Bước 1–3 — PASS; Bước 4 — đang revalidate**
-**Trạng thái:** Code lịch sử tồn tại đến Bước 30, nhưng chỉ Bước 1–3 đã đủ branch/PR/CI/merge để được đánh PASS chính thức. Không bắt đầu Bước 5 trước khi Bước 4 có PR, CI xanh và merge.
+**Gate chính thức:** **Bước 1–4 — PASS; Bước 5 — đang revalidate**
+**Trạng thái:** Code lịch sử tồn tại đến Bước 30, nhưng chỉ Bước 1–4 đã đủ branch/PR/CI/merge để được đánh PASS chính thức. Không bắt đầu Bước 6 trước khi Bước 5 có PR, CI xanh và merge.
 
 **Nguyên tắc phạm vi:** hệ thống là nền tảng sản xuất hình/voice/motion tổng quát cho mọi series. “Xích Bích”, “Tam Quốc” và các tên nhân vật lịch sử chỉ là test fixture/ví dụ acceptance, không phải domain được hard-code.
 
@@ -19,9 +19,11 @@
 - Bằng chứng Bước 2: database mới chạy `alembic upgrade head` đến revision `0002`; raw query trả `journal_mode=wal`, `busy_timeout=5000`; happy/error targeted **3/3 pass**; full CI **95/95 pass**.
 - **Bước 3 PASS:** branch `codex/step3-revalidation`, PR [#3](https://github.com/nkdang2772/video_gensys/pull/3), 2/2 GitHub checks xanh và merge commit `4a11233` trên `main`.
 - Bằng chứng Bước 3: SQLite CLI liệt kê đúng 10 bảng; toàn bộ cột mục 4; raw insert một record/bảng; foreign key, CHECK và partial unique error paths; full CI **96/96 pass**.
-- **Bước 4 đang revalidate** trên branch `codex/step4-revalidation`: đồng bộ đủ 17 CHECK constraint từ migration vào ORM metadata; `alembic check` không phát hiện operation mới.
-- Targeted Bước 4 **6/6 pass** không warning; CRUD tạo/đọc/gọi xóa trực tiếp đủ 10 model; invariant nhân vật có error paths. Full regression **97/97 pass**.
-- Các mô tả “đã hoàn thành” bên dưới là inventory implementation lịch sử, không phải dấu check DoD cho Bước 4–30.
+- **Bước 4 PASS:** branch `codex/step4-revalidation`, PR [#4](https://github.com/nkdang2772/video_gensys/pull/4), 2/2 GitHub checks xanh và merge commit `03a64a7` trên `main`.
+- Bằng chứng Bước 4: đủ 17 CHECK constraint trong ORM metadata; CRUD trực tiếp 10 model; invariant nhân vật; `alembic check` sạch; full CI **97/97 pass**.
+- **Bước 5 đang revalidate** trên branch `codex/step5-revalidation`: `resolve()` chặn traversal/absolute/drive-relative; `to_relative()` chỉ nhận absolute path nằm trong episode root và chuẩn hóa dấu `/`.
+- Targeted Bước 5 **9/9 pass**, gồm input `../../etc/passwd`, happy path `images/s001.png`, round-trip và các error paths Windows/outside/relative input. Full regression **99/99 pass**.
+- Các mô tả “đã hoàn thành” bên dưới là inventory implementation lịch sử, không phải dấu check DoD cho Bước 5–30.
 
 ## Tech stack đã chốt
 

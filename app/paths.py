@@ -31,6 +31,9 @@ def resolve(episode: EpisodeWithRoot, relative_path: str | Path) -> Path:
 
 def to_relative(episode: EpisodeWithRoot, absolute_path: str | Path) -> str:
     root = _root(episode)
-    candidate = Path(absolute_path).expanduser().resolve()
+    candidate_input = Path(absolute_path).expanduser()
+    if not candidate_input.is_absolute():
+        raise ValueError("Asset path must be absolute before converting to an episode-relative path")
+    candidate = candidate_input.resolve()
     relative = _ensure_inside(root, candidate).relative_to(root)
     return relative.as_posix()
