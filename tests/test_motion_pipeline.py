@@ -187,6 +187,40 @@ def test_wan_comfyui_adapter_returns_real_mp4(
     assert any(url.endswith("/prompt") for url, *_ in calls)
 
 
+def test_wan_rejects_invalid_mp4_without_leaving_output(tmp_path: Path, monkeypatch) -> None:
+    source = make_image(tmp_path / "wan-invalid-source.png")
+    output = tmp_path / "wan-invalid-output.mp4"
+    monkeypatch.setattr("app.providers.video.wan._upload_image", lambda *_args: "source.png")
+
+    def fake_request(url, *, payload, timeout):
+        if url.endswith("/prompt"):
+            return b'{"prompt_id":"wan-invalid"}'
+        if "/history/" in url:
+            return b'{"wan-invalid":{"outputs":{"9":{"videos":[{"filename":"broken.mp4"}]}}}}'
+        if "/view?" in url:
+            return b"not-an-mp4"
+        raise AssertionError(url)
+
+    monkeypatch.setattr("app.providers.video.wan._request", fake_request)
+
+    with pytest.raises(VideoProviderError, match="valid MP4"):
+        WanVideoProvider().generate(
+            source,
+            "gentle movement",
+            {
+                "workflow": {
+                    "1": {"inputs": {"image": ""}},
+                    "2": {"inputs": {"text": "{{PROMPT}}"}},
+                },
+                "source_image_node_id": "1",
+                "output_path": str(output),
+                "poll_interval_sec": 0,
+            },
+        )
+
+    assert not output.exists()
+
+
 def test_veo_adapter_uses_injected_client(tmp_path: Path, ffmpeg_executable: str) -> None:
     source = make_image(tmp_path / "veo-source.png")
     expected = make_clip(tmp_path, ffmpeg_executable, duration=1.0)
