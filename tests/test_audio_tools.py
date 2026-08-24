@@ -9,8 +9,8 @@ import numpy as np
 import pytest
 from PIL import Image
 
-from app.media.audio_cutter import cut_wav, detect_silence
-from app.media.waveform import generate_waveform_png
+from app.media.audio_cutter import AudioCutterError, cut_wav, detect_silence
+from app.media.waveform import decode_pcm_frames, generate_waveform_png
 
 
 def write_pcm(path: Path, samples: np.ndarray, sample_rate: int = 8000) -> None:
@@ -38,6 +38,28 @@ def test_generate_waveform_png_without_modifying_source(tmp_path: Path) -> None:
         assert image.size == (800, 200)
 
 
+@pytest.mark.parametrize(
+    ("raw", "sample_width", "expected"),
+    [
+        (bytes([0, 128, 255]), 1, [-128, 0, 127]),
+        (np.array([-32768, 0, 32767], dtype="<i2").tobytes(), 2, [-32768, 0, 32767]),
+        (
+            bytes([0, 0, 128, 0, 0, 0, 255, 255, 127]),
+            3,
+            [-8388608, 0, 8388607],
+        ),
+        (
+            np.array([-2147483648, 0, 2147483647], dtype="<i4").tobytes(),
+            4,
+            [-2147483648, 0, 2147483647],
+        ),
+    ],
+)
+def test_decode_pcm_sample_widths(raw: bytes, sample_width: int, expected: list[int]) -> None:
+    decoded = decode_pcm_frames(raw, sample_width, channels=1)
+    assert decoded[:, 0].tolist() == expected
+
+
 def test_cut_five_minute_wav_into_ten_segments_with_low_drift(tmp_path: Path) -> None:
     sample_rate = 8000
     source = tmp_path / "five_minutes.wav"
@@ -53,6 +75,17 @@ def test_cut_five_minute_wav_into_ten_segments_with_low_drift(tmp_path: Path) ->
             assert wav_file.getnframes() / wav_file.getframerate() == pytest.approx(30.0)
 
 
+def test_cut_rejects_output_that_would_overwrite_source(tmp_path: Path) -> None:
+    source = tmp_path / "voice_segment_001.wav"
+    write_pcm(source, np.zeros(8000, dtype=np.int16))
+    source_hash = hashlib.sha256(source.read_bytes()).hexdigest()
+
+    with pytest.raises(AudioCutterError, match="may not overwrite"):
+        cut_wav(source, [(0.0, 1.0)], tmp_path, prefix="voice")
+
+    assert hashlib.sha256(source.read_bytes()).hexdigest() == source_hash
+
+
 def test_silence_detection_returns_suggestions_only(tmp_path: Path) -> None:
     sample_rate = 8000
     time = np.arange(sample_rate // 2) / sample_rate
@@ -64,4 +97,3 @@ def test_silence_detection_returns_suggestions_only(tmp_path: Path) -> None:
     assert len(intervals) == 1
     assert intervals[0].start_sec == pytest.approx(0.5, abs=0.05)
     assert intervals[0].end_sec == pytest.approx(1.5, abs=0.05)
-

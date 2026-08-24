@@ -7,8 +7,8 @@
 
 - Lỗi đang mở: **0**
 - Lỗi đã đóng: **38**
-- Test regression gần nhất trên `main`: **108/108 pass** (Bước 12, PR #12, merge commit `ca05527`)
-- Bước 13 trên branch `codex/step13-revalidation`: targeted **6/6 pass**, full regression **109/109 pass**
+- Test regression gần nhất trên `main`: **109/109 pass** (Bước 13, PR #13, merge commit `dab009d`)
+- Bước 14 trên branch `codex/step14-revalidation`: targeted **8/8 pass**, full regression **114/114 pass**
 
 ## OBS-001 — Một lượt batch FFprobe 80 WAV thiếu hai file, chưa tái hiện
 

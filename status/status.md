@@ -4,8 +4,8 @@
 **Thư mục dự án:** `D:\video_gensystem`  
 **Phiên bản ứng dụng:** `0.1.0`  
 **Giai đoạn hiện tại:** Audit/revalidation tuần tự theo DoD nghiêm ngặt
-**Gate chính thức:** **Bước 1–12 — PASS; Bước 13 — đang revalidate**
-**Trạng thái:** Code lịch sử tồn tại đến Bước 30, nhưng chỉ Bước 1–12 đã đủ branch/PR/CI/merge để được đánh PASS chính thức. Bước 13 đã đạt test local nhưng chưa được đánh PASS trước khi có PR, CI xanh và merge; Bước 14 chưa được bắt đầu.
+**Gate chính thức:** **Bước 1–13 — PASS; Bước 14 — đang revalidate**
+**Trạng thái:** Code lịch sử tồn tại đến Bước 30, nhưng chỉ Bước 1–13 đã đủ branch/PR/CI/merge để được đánh PASS chính thức. Bước 14 đã đạt test local nhưng chưa được đánh PASS trước khi có PR, CI xanh và merge; Bước 15 chưa được bắt đầu.
 
 **Nguyên tắc phạm vi:** hệ thống là nền tảng sản xuất hình/voice/motion tổng quát cho mọi series. “Xích Bích”, “Tam Quốc” và các tên nhân vật lịch sử chỉ là test fixture/ví dụ acceptance, không phải domain được hard-code.
 
@@ -37,8 +37,10 @@
 - Bằng chứng Bước 11: create Reference series/shared, add/list/get version, checksum, file managed bất biến, CLI v1/v2/v3; BUG-037 đã đóng; targeted **8/8 pass**, `alembic check` sạch, full CI **107/107 pass**.
 - **Bước 12 PASS:** branch `codex/step12-revalidation`, PR [#12](https://github.com/nkdang2772/video_gensys/pull/12), 2/2 GitHub checks xanh và merge commit `ca05527` trên `main`.
 - Bằng chứng Bước 12: duplicate validation, sort canonical, `json.dumps(..., sort_keys=True)`, SHA-256, order independence, `[]` khác `[null]` và không mutate input; targeted **4/4 pass**, full CI **108/108 pass**.
-- **Bước 13 đang revalidate** trên branch `codex/step13-revalidation`: create/update, invariant primary character, atomic update và bulk update **20 shot** regenerate batch key đều được kiểm tra. BUG-038 đã đóng; targeted **6/6 pass**, full regression **109/109 pass**; PR/CI/merge còn chờ.
-- Các mô tả “đã hoàn thành” bên dưới là inventory implementation lịch sử, không phải dấu check DoD cho Bước 13–30.
+- **Bước 13 PASS:** branch `codex/step13-revalidation`, PR [#13](https://github.com/nkdang2772/video_gensys/pull/13), 2/2 GitHub checks xanh và merge commit `dab009d` trên `main`.
+- Bằng chứng Bước 13: create/update, invariant primary character, atomic update và bulk update **20 shot** regenerate batch key; BUG-038 đã đóng; targeted **6/6 pass**, full CI **109/109 pass**.
+- **Bước 14 đang revalidate** trên branch `codex/step14-revalidation`: waveform PNG, PCM 8/16/24/32-bit, silence suggestion, source no-overwrite và WAV thật 5 phút cắt thành 10 đoạn với drift ≤0,1 giây đều được kiểm tra. Targeted **8/8 pass**, full regression **114/114 pass**; PR/CI/merge còn chờ.
+- Các mô tả “đã hoàn thành” bên dưới là inventory implementation lịch sử, không phải dấu check DoD cho Bước 14–30.
 
 ## Tech stack đã chốt
 
