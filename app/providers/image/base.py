@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import hashlib
+import math
 import os
 import shutil
 from abc import ABC, abstractmethod
@@ -41,18 +42,26 @@ class ImageProvider(ABC):
         """Generate one PNG and return its absolute output path."""
 
     def cost(self, config: Mapping[str, Any]) -> ProviderCost:
-        usd = config.get("cost_usd")
-        credit_amount = config.get("cost_credit_amount")
+        def optional_cost(field: str) -> float | None:
+            value = config.get(field)
+            if value is None:
+                return None
+            try:
+                number = float(value)
+            except (TypeError, ValueError) as exc:
+                raise ProviderError(f"{field} must be a finite non-negative number") from exc
+            if not math.isfinite(number) or number < 0:
+                raise ProviderError(f"{field} must be a finite non-negative number")
+            return number
+
+        usd = optional_cost("cost_usd")
+        credit_amount = optional_cost("cost_credit_amount")
         credit_type = config.get("cost_credit_type")
-        if usd is not None and float(usd) < 0:
-            raise ProviderError("cost_usd cannot be negative")
-        if credit_amount is not None and float(credit_amount) < 0:
-            raise ProviderError("cost_credit_amount cannot be negative")
         if credit_type not in {None, "veo", "imagen", "other"}:
             raise ProviderError(f"Unsupported credit type: {credit_type}")
         return ProviderCost(
-            usd=float(usd) if usd is not None else None,
-            credit_amount=float(credit_amount) if credit_amount is not None else None,
+            usd=usd,
+            credit_amount=credit_amount,
             credit_type=credit_type,
             is_estimated=bool(config.get("cost_is_estimated", usd is not None)),
         )

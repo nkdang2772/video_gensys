@@ -11,11 +11,18 @@ from urllib.error import URLError
 from urllib.request import Request, urlopen
 
 from PIL import Image
+import pytest
 from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
 from app.models import Asset, Episode, EpisodeReferencePin, Job, Reference, ReferenceVersion, Series, Shot
-from app.providers.image import ComfyUIImageProvider, GoogleFlowImageProvider, ImageProvider, ManualImageProvider
+from app.providers.image import (
+    ComfyUIImageProvider,
+    GoogleFlowImageProvider,
+    ImageProvider,
+    ManualImageProvider,
+    ProviderError,
+)
 from app.providers.image.base import ProviderCost, ProviderTimeoutError, output_path, write_png_atomic
 from app.services.character_batch import compute_batch_key
 from app.services.image_generation import choose_image_asset, enqueue_character_batch, enqueue_image_job
@@ -190,6 +197,31 @@ def test_all_three_image_provider_adapters_generate_png(tmp_path, monkeypatch) -
     )
     assert comfy_output.read_bytes() == PNG_BYTES
     assert len(comfy_requests) == 3
+
+
+def test_all_image_provider_adapters_report_validated_cost_metadata() -> None:
+    google_cost = GoogleFlowImageProvider(bridge_token="test-flow-bridge-token-123").cost(
+        {
+            "cost_credit_amount": 2,
+            "cost_credit_type": "imagen",
+            "cost_is_estimated": True,
+        }
+    )
+    assert google_cost == ProviderCost(
+        credit_amount=2.0,
+        credit_type="imagen",
+        is_estimated=True,
+    )
+
+    comfy_cost = ComfyUIImageProvider().cost(
+        {"cost_usd": 0.15, "cost_is_estimated": True}
+    )
+    assert comfy_cost == ProviderCost(usd=0.15, is_estimated=True)
+    assert ManualImageProvider().cost({}) == ProviderCost(usd=0.0)
+
+    for invalid in ("not-a-number", float("nan"), -0.01):
+        with pytest.raises(ProviderError):
+            ComfyUIImageProvider().cost({"cost_usd": invalid})
 
 
 def test_image_worker_creates_ten_asset_versions_and_cost(engine, tmp_path) -> None:
