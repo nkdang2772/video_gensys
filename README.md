@@ -49,6 +49,16 @@ python cli.py reference add-version --reference-id 1 --file .\reference.png --li
 python cli.py reference list-versions --reference-id 1
 ```
 
+## Run the Streamlit UI
+
+```powershell
+conda activate video-gensystem
+$env:VIDEO_GENSYSTEM_LIBRARY_ROOT = "D:\video_gensystem\library"
+streamlit run streamlit_app.py
+```
+
+The five MVP screens are Series, Episodes, Import, Shot Manager, and References. Local path inputs are available for desktop workflows; upload controls remain available for scripts, multiple WAV files, and reference versions.
+
 ## Foundation guarantees
 
 - Every SQLite connection enables foreign keys, requests WAL mode, and sets a 5000 ms busy timeout.

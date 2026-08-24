@@ -6,8 +6,8 @@
 ## Tổng quan
 
 - Lỗi đang mở: **0**
-- Lỗi đã đóng: **15**
-- Test regression hiện tại: **64/64 pass**
+- Lỗi đã đóng: **19**
+- Test regression hiện tại: **68/68 pass**
 
 ## BUG-001 — SQLAlchemy không suy luận được kiểu `created_at`
 
@@ -158,6 +158,46 @@
 - **Nguyên nhân:** Update nhiều field không có savepoint riêng.
 - **Cách sửa:** Bọc update và bulk update trong nested transaction; lỗi rollback về state trước operation.
 - **Regression test:** Update primary không thuộc character set raise và object vẫn giữ primary hợp lệ cũ.
+
+## BUG-016 — Protobuf warning làm AppTest fail dưới chế độ warning-as-error
+
+- **Trạng thái:** Đã đóng
+- **Mức độ:** Trung bình, dependency test
+- **Phát hiện:** Lượt Streamlit AppTest đầu tiên trên Python 3.12.
+- **Triệu chứng:** Protobuf extension cũ phát `DeprecationWarning`, bị pytest `-W error` nâng thành lỗi import Streamlit.
+- **Nguyên nhân:** Streamlit 1.37 trong môi trường local dùng protobuf extension có API sắp bị Python 3.14 loại bỏ.
+- **Cách sửa:** Chỉ suppress DeprecationWarning bên thứ ba trong scope import AppTest; warning của code dự án vẫn là error.
+- **Regression test:** Full suite chạy `-W error`, AppTest end-to-end pass.
+
+## BUG-017 — Shot Manager lộ character reference của series khác
+
+- **Trạng thái:** Đã đóng
+- **Mức độ:** Cao, data scope
+- **Phát hiện:** Rà soát character selector trên Shot Manager.
+- **Triệu chứng:** Query ban đầu lấy mọi active character reference trong database.
+- **Nguyên nhân:** Thiếu điều kiện shared-or-owning-series.
+- **Cách sửa:** Chỉ lấy `shared_across_series` hoặc `owning_series_id` bằng Series của Episode hiện tại.
+- **Regression test:** AppTest mở Shot Manager trong đúng Episode context; query production đã giới hạn scope.
+
+## BUG-018 — Shot Manager chưa xử lý Episode rỗng trước data editor
+
+- **Trạng thái:** Đã đóng
+- **Mức độ:** Trung bình
+- **Phát hiện:** Rà soát luồng mở Episode trước khi import script.
+- **Triệu chứng:** Data editor có thể nhận DataFrame không cột cùng danh sách disabled columns không tồn tại.
+- **Nguyên nhân:** Thiếu empty-state guard.
+- **Cách sửa:** Hiển thị hướng dẫn “Import a script first” và return trước khi tạo editor.
+- **Regression test:** AppTest mở Shot Manager ngay sau khi tạo Episode, không exception.
+
+## BUG-019 — WAV uploads trùng filename có thể ghi đè trong staging
+
+- **Trạng thái:** Đã đóng
+- **Mức độ:** Cao, no-silent-overwrite
+- **Phát hiện:** Rà soát multiple-file uploader.
+- **Triệu chứng:** Hai uploaded file cùng basename sẽ ghi đè trong temporary folder trước khi import service thấy chúng.
+- **Nguyên nhân:** Staging loop chưa kiểm tra filename case-insensitive.
+- **Cách sửa:** Track normalized basename và từ chối duplicate trước mọi overwrite.
+- **Regression test:** Logic staging dùng safe basename và explicit duplicate error; voice service vẫn xử lý warning/rollback như trước.
 
 ## Quy ước cập nhật
 

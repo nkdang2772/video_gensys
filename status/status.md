@@ -3,8 +3,8 @@
 **Cập nhật:** 2026-08-24  
 **Thư mục dự án:** `D:\video_gensystem`  
 **Phiên bản ứng dụng:** `0.1.0`  
-**Giai đoạn hiện tại:** Phần D — Reference + Shot Manager
-**Trạng thái:** Bước 11–14 hoàn thành
+**Giai đoạn hiện tại:** Phần E — UI cơ bản
+**Trạng thái:** Bước 15–18 hoàn thành
 
 **Nguyên tắc phạm vi:** hệ thống là nền tảng sản xuất hình/voice/motion tổng quát cho mọi series. “Xích Bích”, “Tam Quốc” và các tên nhân vật lịch sử chỉ là test fixture/ví dụ acceptance, không phải domain được hard-code.
 
@@ -133,11 +133,44 @@
 - Silence detection chỉ trả gợi ý interval, không tự cắt/xác nhận.
 - Test cắt WAV thật dài 5 phút thành 10 segment; tổng duration lệch không quá 0.1 giây.
 
+### Bước 15 — Series/Episode screens
+
+- Streamlit entry point `streamlit_app.py` với router năm màn hình và session-state selection.
+- Series screen list/create/open, cấu hình resolution/FPS/aspect ratio.
+- Episode screen list/create/open, gọi transactional Episode service để snapshot/pin/folder tree.
+- Library root cấu hình bằng `VIDEO_GENSYSTEM_LIBRARY_ROOT`.
+
+### Bước 16 — Import screen
+
+- Nhận script TXT/CSV/JSON bằng upload hoặc local path; preview kết quả parser.
+- Transactional script import tạo Scene/Shot và giữ bản source trong episode folder.
+- Nhận local WAV folder hoặc multiple WAV uploads, gọi voice auto-link/import service.
+- Hiển thị shot list, duration, kết quả liên kết và warning; không silent skip.
+
+### Bước 17 — Shot Manager screen
+
+- Filter theo Scene, bảng inline edit speaker/visual/motion/status.
+- Bulk chọn shot và character, chọn primary, gọi service để regenerate batch key.
+- Chỉ hiển thị shared character hoặc character đúng Series hiện tại.
+- Phát chosen audio theo từng shot; episode chưa có shot hiển thị hướng dẫn import.
+
+### Bước 18 — Reference Library screen
+
+- Tab theo character/style/location/prop/map và nested tab shared/series-specific.
+- Create reference, chọn local file hoặc upload version mới.
+- Hiển thị current version; nhắc rõ Episode pins được snapshot khi Episode được tạo.
+- Test sáu character reference tổng quát có version và được pin đủ khi tạo Episode.
+
+### UI verification
+
+- AppTest end-to-end dùng tên tổng quát: tạo Series, Episode, import script hai shot, link hai WAV thật, mở Shot Manager và Reference Library.
+- Các ví dụ “Tam Quốc”, “Xích Bích” trong DoD có thể nhập trực tiếp qua UI nhưng không xuất hiện trong logic production.
+
 ## Kết quả kiểm thử gần nhất
 
 ```text
 python -m app --version: 0.1.0
-pytest: 64 passed
+pytest: 68 passed
 alembic check: No new upgrade operations detected
 PRAGMA journal_mode: wal
 PRAGMA busy_timeout: 5000
@@ -149,7 +182,8 @@ Kiểm thử đã bao phủ migration bằng raw SQL, CRUD cho mọi ORM model, 
 CLI create series, Episode snapshot/pin/folder tree, parser TXT/CSV/JSON, FFprobe với
 WAV thật, import/re-import 80 audio Asset, ReferenceVersion immutable/checksum,
 character batch key, bulk update 20 Shot, waveform/silence/cắt WAV 5 phút,
-warning/failure rollback, constraints của chosen asset và bảo mật đường dẫn.
+transactional script import và Streamlit AppTest end-to-end, warning/failure rollback,
+constraints của chosen asset và bảo mật đường dẫn.
 
 ## Git
 
@@ -161,6 +195,6 @@ warning/failure rollback, constraints của chosen asset và bảo mật đườ
 
 ## Bước tiếp theo
 
-Phần E — UI cơ bản, bắt đầu bằng Bước 15: Series/Episode list.
+Phần F — Job Queue, bắt đầu bằng Bước 19: Job model + enqueue.
 
-Chưa triển khai Bước 15 trở đi để bảo đảm đúng thứ tự dependency trong `build_order.txt`.
+Chưa triển khai Bước 19 trở đi để bảo đảm đúng thứ tự dependency trong `build_order.txt`.
