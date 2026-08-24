@@ -101,7 +101,11 @@ def test_image_gallery_chooses_variation_and_queues_edited_prompt(
     engine.dispose()
 
     at.run(timeout=20)
-    assert len(at.get("imgs")) == 2
+    choose_buttons = [
+        button for button in at.button if (button.key or "").startswith("gallery_choose_")
+    ]
+    assert len(choose_buttons) == 2
+    assert sum(button.disabled for button in choose_buttons) == 1
     _by_key(at.button, f"gallery_choose_{second_id}").click().run(timeout=20)
     source = tmp_path / "regenerate.png"
     Image.new("RGB", (4, 4), (140, 160, 180)).save(source)
