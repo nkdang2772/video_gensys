@@ -302,3 +302,26 @@ def test_stale_job_at_attempt_limit_remains_failed(engine, tmp_path) -> None:
         assert failed.status == "failed"
         assert failed.attempt_count == 1
         assert failed.error_message == "stale"
+
+
+def test_job_exactly_at_stale_timeout_remains_running(engine, tmp_path) -> None:
+    now = datetime.now(timezone.utc)
+    with Session(engine) as session, session.begin():
+        episode = _create_episode(session, tmp_path)
+        job = enqueue(session, job_type="boundary_task", episode_id=episode.id)
+        job.status = "running"
+        job.worker_pid = 43002
+        job.started_at = now - timedelta(minutes=30)
+        job_id = job.id
+
+    with Session(engine) as session, session.begin():
+        result = recover_stale_jobs(session, now=now)
+        assert result.stale_job_ids == ()
+        assert result.requeued_job_ids == ()
+
+    with Session(engine) as session:
+        boundary = session.get(Job, job_id)
+        assert boundary is not None
+        assert boundary.status == "running"
+        assert boundary.attempt_count == 0
+        assert boundary.worker_pid == 43002

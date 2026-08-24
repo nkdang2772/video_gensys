@@ -35,7 +35,7 @@ def recover_stale_jobs(
             select(Job).where(
                 Job.status == "running",
                 Job.started_at.is_not(None),
-                Job.started_at <= stale_before,
+                Job.started_at < stale_before,
             )
         )
     )
