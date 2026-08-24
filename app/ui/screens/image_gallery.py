@@ -30,13 +30,18 @@ def _provider_config(provider: str, prefix: str) -> dict:
                 "Reference node mappings (JSON list)", value="[]", key=f"{prefix}_ref_nodes"
             ),
         }
+    st.caption("Google Flow requires the h2dev_flow side panel bridge and a token in the environment.")
     return {
-        "model": st.text_input(
-            "Gemini image model", value="gemini-3.1-flash-image", key=f"{prefix}_model"
+        "bridge_port": st.number_input(
+            "Flow bridge port", min_value=1, max_value=65535, value=8765, key=f"{prefix}_port"
         ),
-        "cost_usd": st.number_input(
-            "Estimated cost USD", min_value=0.0, value=0.0, key=f"{prefix}_cost"
+        "downloads_root": st.text_input(
+            "Chrome Downloads folder", value=str(Path.home() / "Downloads"), key=f"{prefix}_downloads"
         ),
+        "cost_credit_amount": st.number_input(
+            "Estimated Flow credits", min_value=0.0, value=0.0, key=f"{prefix}_cost"
+        ),
+        "cost_credit_type": "other",
         "cost_is_estimated": True,
     }
 
@@ -101,7 +106,9 @@ def render(session_factory: sessionmaker[Session], library_root: Path) -> None:
     negative = st.text_area(
         "Negative prompt", value=shot.negative_prompt or "", key="gallery_negative"
     )
-    provider = st.selectbox("Provider", ["manual", "google", "comfyui"], key="gallery_provider")
+    provider = st.selectbox(
+        "Provider", ["manual", "google_flow", "comfyui"], key="gallery_provider"
+    )
     config = _provider_config(provider, "gallery_single")
     if st.button("Queue image variation", key="gallery_enqueue"):
         try:
@@ -122,7 +129,7 @@ def render(session_factory: sessionmaker[Session], library_root: Path) -> None:
     st.subheader("Character batch queue")
     st.caption("Pending shots are grouped by character batch key and pinned reference versions.")
     batch_provider = st.selectbox(
-        "Batch provider", ["google", "comfyui", "manual"], key="gallery_batch_provider"
+        "Batch provider", ["google_flow", "comfyui", "manual"], key="gallery_batch_provider"
     )
     batch_config = _provider_config(batch_provider, "gallery_batch")
     if st.button("Queue pending shots overnight", key="gallery_batch_enqueue"):

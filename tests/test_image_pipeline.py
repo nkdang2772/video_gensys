@@ -2,13 +2,18 @@ from __future__ import annotations
 
 import base64
 import json
+import socket
+import threading
+import time
 from pathlib import Path
+from urllib.error import URLError
+from urllib.request import Request, urlopen
 
 from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
 from app.models import Asset, Episode, EpisodeReferencePin, Job, Reference, ReferenceVersion, Series, Shot
-from app.providers.image import ComfyUIImageProvider, GoogleImageProvider, ImageProvider, ManualImageProvider
+from app.providers.image import ComfyUIImageProvider, GoogleFlowImageProvider, ImageProvider, ManualImageProvider
 from app.providers.image.base import ProviderCost, ProviderTimeoutError, output_path, write_png_atomic
 from app.services.character_batch import compute_batch_key
 from app.services.image_generation import choose_image_asset, enqueue_character_batch, enqueue_image_job
@@ -79,31 +84,64 @@ def test_all_three_image_provider_adapters_generate_png(tmp_path, monkeypatch) -
     )
     assert manual_output.read_bytes() == PNG_BYTES
 
-    google_calls = []
+    with socket.socket() as available_port:
+        available_port.bind(("127.0.0.1", 0))
+        bridge_port = available_port.getsockname()[1]
+    bridge_token = "test-flow-bridge-token-123"
+    downloads_root = tmp_path / "Downloads"
+    observed_task = {}
 
-    def google_transport(url, headers, payload, timeout):
-        google_calls.append((url, headers, payload, timeout))
-        return {
-            "candidates": [
-                {
-                    "content": {
-                        "parts": [
-                            {"inlineData": {"mimeType": "image/png", "data": base64.b64encode(PNG_BYTES).decode("ascii")}}
-                        ]
-                    }
-                }
-            ]
-        }
+    def simulate_extension() -> None:
+        deadline = time.monotonic() + 5
+        while time.monotonic() < deadline:
+            try:
+                request = Request(
+                    f"http://127.0.0.1:{bridge_port}/v1/tasks/next",
+                    headers={"X-VideoGenSystem-Token": bridge_token},
+                )
+                with urlopen(request, timeout=1) as response:
+                    if response.status == 204:
+                        time.sleep(0.01)
+                        continue
+                    task = json.loads(response.read().decode())
+                observed_task.update(task)
+                downloaded = downloads_root / Path(task["download_path"])
+                downloaded.parent.mkdir(parents=True)
+                downloaded.write_bytes(PNG_BYTES)
+                result = Request(
+                    f"http://127.0.0.1:{bridge_port}/v1/tasks/{task['id']}/result",
+                    data=json.dumps({"ok": True, "download_path": task["download_path"]}).encode(),
+                    headers={
+                        "Content-Type": "application/json",
+                        "X-VideoGenSystem-Token": bridge_token,
+                    },
+                    method="POST",
+                )
+                with urlopen(result, timeout=1) as response:
+                    assert response.status == 200
+                return
+            except (URLError, ConnectionError, TimeoutError):
+                time.sleep(0.01)
+        raise AssertionError("Flow bridge did not become available")
 
-    google_output = GoogleImageProvider(api_key="test-key", transport=google_transport).generate(
+    extension_thread = threading.Thread(target=simulate_extension)
+    extension_thread.start()
+    google_output = GoogleFlowImageProvider(bridge_token=bridge_token).generate(
         "A generic scene",
         [source],
-        {"output_path": str(tmp_path / "google.png"), "timeout_sec": 5},
+        {
+            "output_path": str(tmp_path / "google-flow.png"),
+            "downloads_root": str(downloads_root),
+            "bridge_port": bridge_port,
+            "timeout_sec": 5,
+        },
     )
+    extension_thread.join(timeout=5)
+    assert not extension_thread.is_alive()
     assert google_output.read_bytes() == PNG_BYTES
-    assert google_calls[0][1]["x-goog-api-key"] == "test-key"
-    assert "test-key" not in google_calls[0][0]
-    assert google_calls[0][2]["contents"][0]["parts"][1]["inlineData"]["data"]
+    assert observed_task["prompt"] == "A generic scene"
+    assert observed_task["references"][0]["data_url"].startswith("data:image/png;base64,")
+    assert not (downloads_root / observed_task["download_path"]).exists()
 
     comfy_requests = []
 
@@ -223,7 +261,7 @@ def test_image_worker_retries_provider_timeout_and_uses_pinned_version(engine, t
 def test_explicit_empty_provider_registry_never_uses_defaults(engine, tmp_path, monkeypatch) -> None:
     with Session(engine) as session, session.begin():
         _episode_record, shots = _episode(session, tmp_path)
-        job = enqueue_image_job(session, shot_id=shots[0].id, provider="google")
+        job = enqueue_image_job(session, shot_id=shots[0].id, provider="google_flow")
         job_id = job.id
     monkeypatch.setattr(
         "app.workers.image_gen.default_image_providers",
@@ -241,6 +279,12 @@ def test_explicit_empty_provider_registry_never_uses_defaults(engine, tmp_path, 
         assert failed is not None
         assert failed.status == "failed"
         assert "provider is unavailable" in (failed.error_message or "")
+
+
+def test_legacy_google_provider_id_is_normalized(session, tmp_path) -> None:
+    _episode_record, shots = _episode(session, tmp_path)
+    job = enqueue_image_job(session, shot_id=shots[0].id, provider="google")
+    assert job.input_payload_json["provider"] == "google_flow"
 
 
 def test_character_batch_queues_and_generates_eighty_generic_shots(engine, tmp_path) -> None:

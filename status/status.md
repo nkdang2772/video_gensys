@@ -4,7 +4,7 @@
 **Thư mục dự án:** `D:\video_gensystem`  
 **Phiên bản ứng dụng:** `0.1.0`  
 **Giai đoạn hiện tại:** Phần G — Image generation
-**Trạng thái:** Bước 22–24 hoàn thành về code/test; live Google/ComfyUI acceptance chờ credentials/service
+**Trạng thái:** Bước 22–24 hoàn thành về code/test; live Google Flow/ComfyUI acceptance chờ browser/service
 
 **Nguyên tắc phạm vi:** hệ thống là nền tảng sản xuất hình/voice/motion tổng quát cho mọi series. “Xích Bích”, “Tam Quốc” và các tên nhân vật lịch sử chỉ là test fixture/ví dụ acceptance, không phải domain được hard-code.
 
@@ -192,7 +192,8 @@
 ### Bước 22 — ImageProvider interface + adapters
 
 - Interface thống nhất `generate(prompt, reference_images, config) -> Path` và cost metadata không dùng mutable global state.
-- Google adapter gọi Gemini `generateContent`, gửi reference inline base64, API key chỉ ở header và lưu PNG atomic.
+- Google Flow adapter mở localhost task bridge có token cho extension `h2dev_flow`; không gọi Gemini API và không cần API key.
+- Extension nhận prompt + pinned reference, điều khiển Flow bằng `chrome.debugger`, tải PNG theo task ID rồi báo kết quả về worker.
 - ComfyUI adapter upload pinned references, inject prompt vào API workflow, POST `/prompt`, poll `/history/{id}` và tải `/view`.
 - Manual adapter copy PNG vào output managed, không ghi đè source/output cũ.
 - Cả ba adapter validate PNG; test protocol Google/ComfyUI bằng transport giả lập và manual bằng file thật.
@@ -201,7 +202,7 @@
 
 - Chỉ nhận `image_gen` có Shot; load đúng ReferenceVersion đã pin trong Job payload, không lấy current version mới.
 - Provider chạy ngoài DB transaction; Asset image version mới được tạo với `is_chosen=false`, checksum, size, width/height và provenance.
-- Job ghi provider cùng cost USD/credit/estimated; API key không lưu DB.
+- Job ghi provider cùng cost USD/credit/estimated; bridge token không lưu DB.
 - Idempotency theo `workflow_id=job:{id}` tránh sinh Asset trùng nếu worker chết sau commit Asset.
 - Provider timeout được failed/increment attempt/requeue đến max attempts; test timeout hai lần và thành công lần ba.
 - Test 10 image jobs tạo đúng 10 Asset version.
@@ -216,14 +217,16 @@
 ### Giới hạn live provider
 
 - Manual provider đã chạy end-to-end bằng PNG thật.
-- Google và ComfyUI đã qua protocol/response integration test không dùng mạng, không phát sinh chi phí.
-- Live acceptance cần `GEMINI_API_KEY` hợp lệ và một ComfyUI local đang chạy với model/workflow tương thích; chưa có hai điều kiện này trong workspace hiện tại nên không tuyên bố đã gọi live.
+- Google Flow bridge đã qua integration test localhost thật với extension simulator; không gọi dịch vụ ngoài và không phát sinh credit.
+- Extension nguồn được quản lý tại `integrations/h2dev_flow_extension` và sẽ được đồng bộ với bản người dùng đang dùng.
+- Live acceptance cần reload extension, mở một project Flow đã đăng nhập, mở side panel bridge và giữ DevTools đóng. Hiện không có tab Flow mở trong browser đã kết nối nên chưa tuyên bố đã sinh live.
+- ComfyUI live acceptance vẫn cần server local đang chạy với model/workflow tương thích.
 
 ## Kết quả kiểm thử gần nhất
 
 ```text
 python -m app --version: 0.1.0
-pytest: 81 passed
+pytest: 82 passed
 alembic check: No new upgrade operations detected
 PRAGMA journal_mode: wal
 PRAGMA busy_timeout: 5000

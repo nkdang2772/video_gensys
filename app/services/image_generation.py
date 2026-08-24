@@ -9,7 +9,8 @@ from sqlalchemy.orm import Session
 from app.models import Asset, Episode, EpisodeReferencePin, Job, Reference, ReferenceVersion, Shot
 from app.queue.job import enqueue
 
-IMAGE_PROVIDERS = frozenset({"google", "comfyui", "manual"})
+IMAGE_PROVIDERS = frozenset({"google_flow", "comfyui", "manual"})
+PROVIDER_ALIASES = {"google": "google_flow"}
 
 
 def pinned_versions_for_shot(
@@ -53,6 +54,7 @@ def enqueue_image_job(
     max_attempts: int = 3,
 ) -> Job:
     clean_provider = provider.strip().lower()
+    clean_provider = PROVIDER_ALIASES.get(clean_provider, clean_provider)
     if clean_provider not in IMAGE_PROVIDERS:
         raise ValueError(f"Unsupported image provider: {provider}")
     shot = session.get(Shot, shot_id)

@@ -6,8 +6,8 @@
 ## Tổng quan
 
 - Lỗi đang mở: **0**
-- Lỗi đã đóng: **23**
-- Test regression hiện tại: **81/81 pass**
+- Lỗi đã đóng: **24**
+- Test regression hiện tại: **82/82 pass**
 
 ## BUG-001 — SQLAlchemy không suy luận được kiểu `created_at`
 
@@ -238,6 +238,16 @@
 - **Nguyên nhân:** Dùng trực tiếp basename local trong multipart header.
 - **Cách sửa:** Từ chối quote/CR/LF trước khi dựng request; upload explicit `type=input` và `overwrite=true`.
 - **Regression test:** ComfyUI adapter test xác minh reference node nhận đúng managed upload name.
+
+## BUG-024 — Google provider triển khai sai kênh người dùng thực tế
+
+- **Trạng thái:** Đã đóng
+- **Mức độ:** Blocker, sai integration contract
+- **Phát hiện:** Người dùng xác nhận đang dùng Google Flow qua extension `h2dev_flow`, không dùng Gemini API.
+- **Triệu chứng:** Adapter cũ yêu cầu `GEMINI_API_KEY` và không thể tận dụng phiên đăng nhập/Flow workflow hiện có.
+- **Nguyên nhân:** Diễn giải “Nano Banana qua Gemini API” theo REST API mà chưa đối chiếu tool thực tế của người dùng.
+- **Cách sửa:** Thay toàn bộ Google runtime bằng localhost bridge có token giữa Python worker và Chrome extension; provider ID đổi thành `google_flow`.
+- **Regression test:** Integration test mở bridge thật, extension simulator lấy prompt/reference, tạo download theo task ID và trả PNG; không có request Gemini.
 
 ## Quy ước cập nhật
 

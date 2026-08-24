@@ -13,7 +13,7 @@ from app.models import Asset, Episode, Job, Shot
 from app.paths import resolve, to_relative
 from app.providers.image import (
     ComfyUIImageProvider,
-    GoogleImageProvider,
+    GoogleFlowImageProvider,
     ImageProvider,
     ManualImageProvider,
     ProviderError,
@@ -28,8 +28,10 @@ SAFE_SHOT_ID = re.compile(r"^[A-Za-z0-9][A-Za-z0-9_-]*$")
 
 
 def default_image_providers() -> dict[str, ImageProvider]:
+    flow = GoogleFlowImageProvider()
     return {
-        "google": GoogleImageProvider(),
+        "google_flow": flow,
+        "google": flow,
         "comfyui": ComfyUIImageProvider(),
         "manual": ManualImageProvider(),
     }
@@ -62,6 +64,8 @@ def process_image_job(
             raise ValueError("Image Job references missing or inconsistent records")
         payload = dict(job.input_payload_json or {})
         provider_name = str(payload.get("provider", "")).lower()
+        if provider_name == "google":
+            provider_name = "google_flow"
         provider = registry.get(provider_name)
         if provider is None:
             raise ProviderError(f"Image provider is unavailable: {provider_name}")

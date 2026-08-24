@@ -65,7 +65,7 @@ Queue operations live under `app.queue`. Jobs are ordered by `high`, `normal`, `
 
 ## Image providers
 
-- Google image generation reads `GEMINI_API_KEY` from the environment and defaults to `gemini-3.1-flash-image`. The API key is sent in the request header and is never persisted in Job payloads.
+- Google image generation uses the bundled `integrations/h2dev_flow_extension` to control the user's signed-in Google Flow UI. It does not call Gemini API. Set `VIDEO_GENSYSTEM_FLOW_BRIDGE_TOKEN`, reload the unpacked extension, then enable its localhost bridge using the same token.
 - ComfyUI defaults to `http://127.0.0.1:8188` and accepts a workflow exported in API format. Use `{{PROMPT}}` in the workflow or configure a prompt node; map pinned references to LoadImage nodes with `reference_image_nodes`.
 - Manual fallback copies an existing PNG into managed episode storage without overwriting the source.
 
