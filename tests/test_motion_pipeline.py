@@ -13,7 +13,7 @@ from app.media.ffprobe import probe_video
 from app.models import Asset, Episode, Job, Series, Shot
 from app.motion.fallback import render_with_fallback
 from app.motion.fill import apply_fill_policy, plan_subshots
-from app.motion.kenburns import render_kenburns
+from app.motion.kenburns import KenBurnsError, render_kenburns
 from app.providers.video import VeoVideoProvider, VideoProvider, VideoProviderError, WanVideoProvider
 from app.providers.video.base import video_output_path
 from app.services.motion_generation import choose_motion_asset, enqueue_motion_job, retry_motion_job
@@ -124,13 +124,26 @@ def test_kenburns_renders_five_second_mp4(
         1.0,
         1.1,
         output_path=tmp_path / "kenburns.mp4",
-        fps=12,
+        fps=30,
         ffmpeg_path=ffmpeg_executable,
     )
     metadata = probe_video(output, ffprobe_path=ffprobe_executable)
     assert metadata.duration_sec == pytest.approx(5.0, abs=0.1)
-    assert metadata.frame_rate == pytest.approx(12.0, abs=0.01)
-    assert metadata.frame_count == 60
+    assert metadata.frame_rate == pytest.approx(30.0, abs=0.01)
+    assert metadata.frame_count == 150
+    assert (metadata.width, metadata.height) == (320, 180)
+    assert metadata.codec == "h264"
+
+
+def test_kenburns_rejects_existing_output_without_overwriting(tmp_path: Path) -> None:
+    source = make_image(tmp_path / "source.png")
+    output = tmp_path / "existing.mp4"
+    output.write_bytes(b"preserve-existing-output")
+
+    with pytest.raises(KenBurnsError, match="already exists"):
+        render_kenburns(source, 5.0, output_path=output)
+
+    assert output.read_bytes() == b"preserve-existing-output"
 
 
 def test_wan_comfyui_adapter_returns_real_mp4(

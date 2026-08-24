@@ -56,13 +56,35 @@ def test_probe_uses_default_30_second_timeout(
 ) -> None:
     path = tmp_path / "timeout.wav"
     write_silent_wav(path, 0.125)
-    observed: dict[str, float] = {}
+    observed: list[float] = []
 
     def simulate_timeout(command, **kwargs):
-        observed["timeout"] = kwargs["timeout"]
+        observed.append(kwargs["timeout"])
         raise subprocess.TimeoutExpired(command, kwargs["timeout"])
 
     monkeypatch.setattr(ffprobe_module.subprocess, "run", simulate_timeout)
     with pytest.raises(FFprobeError, match="timed out after 30 seconds"):
         probe_audio(path, ffprobe_path=ffprobe_executable)
-    assert observed == {"timeout": 30.0}
+    assert observed == [30.0, 30.0]
+
+
+def test_probe_retries_one_transient_timeout(
+    tmp_path: Path, ffprobe_executable: str, monkeypatch
+) -> None:
+    path = tmp_path / "transient.wav"
+    write_silent_wav(path, 0.125)
+    real_run = ffprobe_module.subprocess.run
+    calls = 0
+
+    def timeout_once(command, **kwargs):
+        nonlocal calls
+        calls += 1
+        if calls == 1:
+            raise subprocess.TimeoutExpired(command, kwargs["timeout"])
+        return real_run(command, **kwargs)
+
+    monkeypatch.setattr(ffprobe_module.subprocess, "run", timeout_once)
+    metadata = probe_audio(path, ffprobe_path=ffprobe_executable)
+
+    assert calls == 2
+    assert metadata.duration_sec == pytest.approx(0.125, abs=0.001)
