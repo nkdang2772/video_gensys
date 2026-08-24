@@ -166,6 +166,19 @@ def mark_job_failed(engine: Engine, job_id: int, error: str) -> None:
         job.worker_pid = None
 
 
+def requeue_failed_job(engine: Engine, job_id: int) -> bool:
+    with Session(engine) as session, session.begin():
+        job = session.get(Job, job_id)
+        if job is None or job.status != "failed" or job.attempt_count >= job.max_attempts:
+            return False
+        job.status = "queued"
+        job.progress_percent = 0.0
+        job.worker_pid = None
+        job.started_at = None
+        job.completed_at = None
+        return True
+
+
 def run_worker(
     engine: Engine,
     handler: Callable[[ClaimedJob], Mapping[str, Any] | None],
@@ -176,6 +189,7 @@ def run_worker(
     stop_event: Event | None = None,
     exit_when_empty: bool = False,
     max_jobs: int | None = None,
+    retry_exceptions: tuple[type[Exception], ...] = (),
 ) -> int:
     """Poll, claim, and process jobs; processing occurs after the claim commit."""
     if poll_interval < 0:
@@ -196,5 +210,7 @@ def run_worker(
             mark_job_done(engine, claimed.id, output)
         except Exception as exc:
             mark_job_failed(engine, claimed.id, f"{type(exc).__name__}: {exc}")
+            if isinstance(exc, retry_exceptions):
+                requeue_failed_job(engine, claimed.id)
         processed += 1
     return processed

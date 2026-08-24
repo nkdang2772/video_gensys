@@ -3,10 +3,12 @@
 **Cập nhật:** 2026-08-24  
 **Thư mục dự án:** `D:\video_gensystem`  
 **Phiên bản ứng dụng:** `0.1.0`  
-**Giai đoạn hiện tại:** Phần F — Job Queue
-**Trạng thái:** Bước 19–21 hoàn thành
+**Giai đoạn hiện tại:** Phần G — Image generation
+**Trạng thái:** Bước 22–24 hoàn thành về code/test; live Google/ComfyUI acceptance chờ credentials/service
 
 **Nguyên tắc phạm vi:** hệ thống là nền tảng sản xuất hình/voice/motion tổng quát cho mọi series. “Xích Bích”, “Tam Quốc” và các tên nhân vật lịch sử chỉ là test fixture/ví dụ acceptance, không phải domain được hard-code.
+
+**Quy ước vận hành:** trước mỗi giai đoạn triển khai hoặc sửa lỗi, phải đọc lại toàn bộ `status/status.md` và phần tổng quan/lỗi mới nhất trong `bug/bug.md` để đối chiếu dependency, giới hạn đã biết, test baseline và trạng thái Git.
 
 ## Tech stack đã chốt
 
@@ -187,11 +189,41 @@
 - Job failed còn attempt tự quay về queued; job đạt max attempts giữ failed.
 - Integration test mô phỏng worker chết sau claim và xác nhận job được claim lại bởi worker khác.
 
+### Bước 22 — ImageProvider interface + adapters
+
+- Interface thống nhất `generate(prompt, reference_images, config) -> Path` và cost metadata không dùng mutable global state.
+- Google adapter gọi Gemini `generateContent`, gửi reference inline base64, API key chỉ ở header và lưu PNG atomic.
+- ComfyUI adapter upload pinned references, inject prompt vào API workflow, POST `/prompt`, poll `/history/{id}` và tải `/view`.
+- Manual adapter copy PNG vào output managed, không ghi đè source/output cũ.
+- Cả ba adapter validate PNG; test protocol Google/ComfyUI bằng transport giả lập và manual bằng file thật.
+
+### Bước 23 — Image generation worker
+
+- Chỉ nhận `image_gen` có Shot; load đúng ReferenceVersion đã pin trong Job payload, không lấy current version mới.
+- Provider chạy ngoài DB transaction; Asset image version mới được tạo với `is_chosen=false`, checksum, size, width/height và provenance.
+- Job ghi provider cùng cost USD/credit/estimated; API key không lưu DB.
+- Idempotency theo `workflow_id=job:{id}` tránh sinh Asset trùng nếu worker chết sau commit Asset.
+- Provider timeout được failed/increment attempt/requeue đến max attempts; test timeout hai lần và thành công lần ba.
+- Test 10 image jobs tạo đúng 10 Asset version.
+
+### Bước 24 — Image Gallery + character batch queue
+
+- Screen thứ sáu hiển thị variation grid, chọn chosen version, queue regenerate với prompt sửa và theo dõi Job.
+- Batch pending shots sort theo `character_batch_key`, pinned version IDs và order index; duplicate active jobs bị loại.
+- Batch dùng priority overnight, giữ render order độc lập với Shot order.
+- Acceptance tự động với 80 shot tổng quát tạo đủ 80 Asset, mỗi Shot có một image.
+
+### Giới hạn live provider
+
+- Manual provider đã chạy end-to-end bằng PNG thật.
+- Google và ComfyUI đã qua protocol/response integration test không dùng mạng, không phát sinh chi phí.
+- Live acceptance cần `GEMINI_API_KEY` hợp lệ và một ComfyUI local đang chạy với model/workflow tương thích; chưa có hai điều kiện này trong workspace hiện tại nên không tuyên bố đã gọi live.
+
 ## Kết quả kiểm thử gần nhất
 
 ```text
 python -m app --version: 0.1.0
-pytest: 75 passed
+pytest: 81 passed
 alembic check: No new upgrade operations detected
 PRAGMA journal_mode: wal
 PRAGMA busy_timeout: 5000
@@ -205,7 +237,8 @@ WAV thật, import/re-import 80 audio Asset, ReferenceVersion immutable/checksum
 character batch key, bulk update 20 Shot, waveform/silence/cắt WAV 5 phút,
 transactional script import và Streamlit AppTest end-to-end, warning/failure rollback,
 constraints của chosen asset, bảo mật đường dẫn, queue priority, SQLite lock retry,
-hai worker claim đồng thời và stale recovery.
+hai worker claim đồng thời, stale recovery, ba image provider adapters, retry timeout,
+image Asset versioning/cost, gallery UI và batch 80 shot.
 
 ## Git
 
@@ -217,6 +250,6 @@ hai worker claim đồng thời và stale recovery.
 
 ## Bước tiếp theo
 
-Phần G — Image generation, bắt đầu bằng Bước 22 theo `build_order.txt`.
+Chờ đặc tả bước tiếp theo sau Bước 24.
 
-Chưa triển khai Bước 22 trở đi để bảo đảm đúng thứ tự dependency trong `build_order.txt`.
+Không triển khai ngoài Bước 24 khi chưa có yêu cầu tiếp theo.

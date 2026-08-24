@@ -63,6 +63,14 @@ The five MVP screens are Series, Episodes, Import, Shot Manager, and References.
 
 Queue operations live under `app.queue`. Jobs are ordered by `high`, `normal`, `image`, `gpu`, `overnight`, then `export`, with FIFO ordering inside each priority. Worker claims use a dedicated SQLite connection and `BEGIN IMMEDIATE`; job processing starts only after the claim transaction commits. Stale jobs default to a 30-minute timeout and are requeued while attempts remain.
 
+## Image providers
+
+- Google image generation reads `GEMINI_API_KEY` from the environment and defaults to `gemini-3.1-flash-image`. The API key is sent in the request header and is never persisted in Job payloads.
+- ComfyUI defaults to `http://127.0.0.1:8188` and accepts a workflow exported in API format. Use `{{PROMPT}}` in the workflow or configure a prompt node; map pinned references to LoadImage nodes with `reference_image_nodes`.
+- Manual fallback copies an existing PNG into managed episode storage without overwriting the source.
+
+The Image Gallery queues work. Run image jobs from Python with `app.workers.image_gen.run_image_worker`; generated variations are immutable Asset versions and are not chosen automatically.
+
 ## Foundation guarantees
 
 - Every SQLite connection enables foreign keys, requests WAL mode, and sets a 5000 ms busy timeout.

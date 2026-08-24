@@ -6,8 +6,8 @@
 ## Tổng quan
 
 - Lỗi đang mở: **0**
-- Lỗi đã đóng: **21**
-- Test regression hiện tại: **75/75 pass**
+- Lỗi đã đóng: **23**
+- Test regression hiện tại: **81/81 pass**
 
 ## BUG-001 — SQLAlchemy không suy luận được kiểu `created_at`
 
@@ -218,6 +218,26 @@
 - **Nguyên nhân:** Khối try ban đầu chỉ bao quanh handler, không bao quanh bước hoàn tất Job.
 - **Cách sửa:** Đưa cả handler và `mark_job_done` vào cùng failure boundary; lỗi completion chuyển Job sang failed và tăng attempt.
 - **Regression test:** Handler trả set trong output bị đánh failed, tăng attempt; stale recovery vẫn là lớp bảo vệ cuối khi process chết đột ngột.
+
+## BUG-022 — Registry rỗng có thể vô tình kích hoạt provider thật
+
+- **Trạng thái:** Đã đóng
+- **Mức độ:** Cao, external side effect
+- **Phát hiện:** Review dependency injection của image worker.
+- **Triệu chứng:** Caller truyền `{}` để cấm provider nhưng biểu thức fallback coi dict rỗng là false và tự tạo Google/ComfyUI/manual adapters.
+- **Nguyên nhân:** Dùng `providers or default_image_providers()` thay vì phân biệt rõ `None` với mapping rỗng.
+- **Cách sửa:** Chỉ tạo default registry khi `providers is None`; mapping rỗng giữ nguyên và job fail rõ provider unavailable.
+- **Regression test:** Truyền registry rỗng làm Job failed rõ ràng và monkeypatch xác nhận default factory không được gọi.
+
+## BUG-023 — Filename reference có thể phá multipart upload ComfyUI
+
+- **Trạng thái:** Đã đóng
+- **Mức độ:** Cao, request integrity
+- **Phát hiện:** Security review phần tự dựng multipart bằng standard library.
+- **Triệu chứng:** Filename chứa quote hoặc CR/LF có thể thay đổi Content-Disposition/header của request upload.
+- **Nguyên nhân:** Dùng trực tiếp basename local trong multipart header.
+- **Cách sửa:** Từ chối quote/CR/LF trước khi dựng request; upload explicit `type=input` và `overwrite=true`.
+- **Regression test:** ComfyUI adapter test xác minh reference node nhận đúng managed upload name.
 
 ## Quy ước cập nhật
 
