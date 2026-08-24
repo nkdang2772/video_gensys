@@ -6,9 +6,19 @@
 ## Tổng quan
 
 - Lỗi đang mở: **0**
-- Lỗi đã đóng: **31**
-- Test regression gần nhất trên `main`: **96/96 pass**
-- Bước 4 trên branch `codex/step4-revalidation`: targeted **6/6 pass**, full regression **97/97 pass**
+- Lỗi đã đóng: **32**
+- Test regression gần nhất trên `main`: **97/97 pass**
+- Bước 5 trên branch `codex/step5-revalidation`: targeted **9/9 pass**, full regression **99/99 pass**
+
+## BUG-032 — `to_relative()` chấp nhận input tương đối phụ thuộc working directory
+
+- **Trạng thái:** Đã đóng
+- **Mức độ:** Cao, an toàn đường dẫn
+- **Phát hiện:** Revalidation Bước 5 sau khi PR #4 được merge.
+- **Triệu chứng:** Contract yêu cầu `absolute_path`, nhưng hàm gọi `Path.resolve()` trực tiếp nên input như `images/s001.png` có thể được chấp nhận hoặc từ chối tùy current working directory.
+- **Nguyên nhân:** Thiếu validation `Path.is_absolute()` trước bước resolve/containment check.
+- **Cách sửa:** Từ chối input không absolute bằng `ValueError`; giữ containment check sau resolve; thêm round-trip test `resolve()` → `to_relative()`.
+- **Regression test:** `tests/test_paths.py` pass 9/9; full suite pass 99/99.
 
 ## BUG-031 — ORM metadata thiếu 17 CHECK constraint của migration
 
