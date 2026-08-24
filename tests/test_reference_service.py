@@ -113,6 +113,34 @@ def test_reference_version_record_cannot_be_updated(session, tmp_path: Path) -> 
     session.rollback()
 
 
+def test_reference_version_descriptor_cannot_be_mutated_in_place(
+    session, tmp_path: Path
+) -> None:
+    reference = create_reference(
+        session,
+        name="Immutable Descriptor",
+        reference_type="style",
+        scope="shared_across_series",
+    )
+    session.commit()
+    source = tmp_path / "style.png"
+    source.write_bytes(b"style-v1")
+    version = add_version(
+        session,
+        reference_id=reference.id,
+        source_path=source,
+        library_root=tmp_path / "library",
+        descriptor_json={"label": "original"},
+    )
+
+    version.descriptor_json["label"] = "changed"
+    with pytest.raises(ImmutableReferenceVersionError, match="descriptor_json"):
+        session.flush()
+    session.rollback()
+    session.refresh(version)
+    assert version.descriptor_json == {"label": "original"}
+
+
 def test_invalid_reference_scope_ownership_is_rejected(session) -> None:
     with pytest.raises(ValueError, match="requires owning_series_id"):
         create_reference(
