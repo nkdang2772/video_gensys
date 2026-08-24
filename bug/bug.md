@@ -7,15 +7,15 @@
 
 - Lỗi đang mở: **0**
 - Lỗi đã đóng: **36**
-- Test regression gần nhất trên `main`: **104/104 pass** (Bước 8, PR #8, merge commit `bc43965`)
-- Bước 9 trên branch `codex/step9-revalidation`: targeted **5/5 pass**, full regression **105/105 pass**
+- Test regression gần nhất trên `main`: **105/105 pass** (Bước 9, PR #9, merge commit `562bdd8`)
+- Bước 10 trên branch `codex/step10-revalidation`: targeted **8/8 pass**, full regression **106/106 pass**
 
 ## OBS-001 — Một lượt batch FFprobe 80 WAV thiếu hai file, chưa tái hiện
 
 - **Trạng thái:** Theo dõi, chưa xác nhận là bug production
 - **Phát hiện:** Lượt full regression đầu của Bước 8 import 78/80 WAV và báo thiếu audio cho `s060` cùng một shot khác.
-- **Đối chứng:** Test batch 80 WAV chạy riêng pass; lặp tiếp 3/3 lần đều pass 80/80; full suite Bước 8 pass 104/104. Revalidation Bước 9 tiếp tục pass WAV thật ngắn/dài/hỏng/zero-duration, timeout 30 giây và full suite 105/105; hiện tượng vẫn không tái hiện.
-- **Xử lý hiện tại:** Không thay đổi Step 9/10 ngoài phạm vi khi chưa có reproduction hoặc warning FFprobe cụ thể; giữ sự cố trong nhật ký để đối chiếu nếu tái diễn.
+- **Đối chứng:** Test batch 80 WAV chạy riêng pass; lặp tiếp 3/3 lần đều pass 80/80; full suite Bước 8 pass 104/104. Revalidation Bước 9 pass WAV thật ngắn/dài/hỏng/zero-duration, timeout 30 giây và full suite 105/105. Revalidation Bước 10 tiếp tục import đủ 80/80 WAV và full suite 106/106; hiện tượng vẫn không tái hiện.
+- **Xử lý hiện tại:** Không sửa production logic khi chưa có reproduction hoặc warning FFprobe cụ thể; giữ sự cố trong nhật ký để đối chiếu nếu tái diễn.
 
 ## BUG-032 — `to_relative()` chấp nhận input tương đối phụ thuộc working directory
 

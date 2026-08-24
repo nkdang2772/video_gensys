@@ -98,6 +98,30 @@ def test_broken_matched_wav_is_reported_and_not_silently_imported(
     }
 
 
+def test_filename_with_two_known_shot_ids_is_reported_and_not_guessed(
+    session, tmp_path: Path, ffprobe_executable: str
+) -> None:
+    episode = create_episode_with_shots(session, tmp_path, count=2)
+    voice_folder = tmp_path / "voice"
+    voice_folder.mkdir()
+    write_silent_wav(voice_folder / "s001_s002.wav", 0.02)
+
+    report = import_voice_folder(
+        session,
+        episode_id=episode.id,
+        folder=voice_folder,
+        ffprobe_path=ffprobe_executable,
+    )
+
+    assert not report.imported_assets
+    assert [warning.code for warning in report.warnings] == [
+        "unmatched_file",
+        "missing_audio_for_shot",
+        "missing_audio_for_shot",
+    ]
+    assert {warning.shot_id for warning in report.warnings[1:]} == {"s001", "s002"}
+
+
 def test_valid_second_candidate_imports_after_first_candidate_is_broken(
     session, tmp_path: Path, ffprobe_executable: str
 ) -> None:

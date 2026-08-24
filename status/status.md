@@ -4,8 +4,8 @@
 **Thư mục dự án:** `D:\video_gensystem`  
 **Phiên bản ứng dụng:** `0.1.0`  
 **Giai đoạn hiện tại:** Audit/revalidation tuần tự theo DoD nghiêm ngặt
-**Gate chính thức:** **Bước 1–8 — PASS; Bước 9 — đang revalidate**
-**Trạng thái:** Code lịch sử tồn tại đến Bước 30, nhưng chỉ Bước 1–8 đã đủ branch/PR/CI/merge để được đánh PASS chính thức. Bước 9 đã đạt test local nhưng chưa được đánh PASS trước khi có PR, CI xanh và merge; Bước 10 chưa được bắt đầu.
+**Gate chính thức:** **Bước 1–9 — PASS; Bước 10 — đang revalidate**
+**Trạng thái:** Code lịch sử tồn tại đến Bước 30, nhưng chỉ Bước 1–9 đã đủ branch/PR/CI/merge để được đánh PASS chính thức. Bước 10 đã đạt test local nhưng chưa được đánh PASS trước khi có PR, CI xanh và merge; Bước 11 chưa được bắt đầu.
 
 **Nguyên tắc phạm vi:** hệ thống là nền tảng sản xuất hình/voice/motion tổng quát cho mọi series. “Xích Bích”, “Tam Quốc” và các tên nhân vật lịch sử chỉ là test fixture/ví dụ acceptance, không phải domain được hard-code.
 
@@ -29,8 +29,10 @@
 - Bằng chứng Bước 7: snapshot, pin active series references + style anchor, folder tree, rollback disk/database và tính bất biến sau redesign; targeted **6/6 pass**, full CI **101/101 pass**.
 - **Bước 8 PASS:** branch `codex/step8-revalidation`, PR [#8](https://github.com/nkdang2772/video_gensys/pull/8), 2/2 GitHub checks xanh và merge commit `bc43965` trên `main`.
 - Bằng chứng Bước 8: TXT/CSV/JSON, fixture 80 shot, multiline, thiếu/trùng/unsafe shot ID; targeted **12/12 pass**, full CI **104/104 pass**; BUG-034–036 đã đóng.
-- **Bước 9 đang revalidate** trên branch `codex/step9-revalidation`: wrapper đã được kiểm tra bằng WAV thật ngắn/dài/hỏng/zero-duration và test giả lập xác nhận subprocess nhận timeout mặc định đúng **30 giây**. Targeted **5/5 pass**, full regression **105/105 pass**; PR/CI/merge còn chờ.
-- Các mô tả “đã hoàn thành” bên dưới là inventory implementation lịch sử, không phải dấu check DoD cho Bước 9–30.
+- **Bước 9 PASS:** branch `codex/step9-revalidation`, PR [#9](https://github.com/nkdang2772/video_gensys/pull/9), 2/2 GitHub checks xanh và merge commit `562bdd8` trên `main`.
+- Bằng chứng Bước 9: WAV thật ngắn/dài/hỏng/zero-duration và test giả lập xác nhận subprocess nhận timeout mặc định đúng **30 giây**; targeted **5/5 pass**, full CI **105/105 pass**.
+- **Bước 10 đang revalidate** trên branch `codex/step10-revalidation`: batch **80/80 WAV thật** link đúng; Asset audio chosen, duration, warning file sai tên, rollback, re-import version và trường hợp filename mơ hồ đều được kiểm tra. Targeted **8/8 pass**, full regression **106/106 pass**; PR/CI/merge còn chờ.
+- Các mô tả “đã hoàn thành” bên dưới là inventory implementation lịch sử, không phải dấu check DoD cho Bước 10–30.
 
 ## Tech stack đã chốt
 
