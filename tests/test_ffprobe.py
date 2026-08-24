@@ -1,10 +1,12 @@
 from __future__ import annotations
 
+import subprocess
 import wave
 from pathlib import Path
 
 import pytest
 
+import app.media.ffprobe as ffprobe_module
 from app.media.ffprobe import FFprobeError, probe_audio
 
 
@@ -47,3 +49,20 @@ def test_probe_rejects_zero_duration_wav(tmp_path: Path, ffprobe_executable: str
     write_silent_wav(path, 0)
     with pytest.raises(FFprobeError, match="duration"):
         probe_audio(path, ffprobe_path=ffprobe_executable)
+
+
+def test_probe_uses_default_30_second_timeout(
+    tmp_path: Path, ffprobe_executable: str, monkeypatch
+) -> None:
+    path = tmp_path / "timeout.wav"
+    write_silent_wav(path, 0.125)
+    observed: dict[str, float] = {}
+
+    def simulate_timeout(command, **kwargs):
+        observed["timeout"] = kwargs["timeout"]
+        raise subprocess.TimeoutExpired(command, kwargs["timeout"])
+
+    monkeypatch.setattr(ffprobe_module.subprocess, "run", simulate_timeout)
+    with pytest.raises(FFprobeError, match="timed out after 30 seconds"):
+        probe_audio(path, ffprobe_path=ffprobe_executable)
+    assert observed == {"timeout": 30.0}
