@@ -3,8 +3,8 @@
 **Cập nhật:** 2026-08-24  
 **Thư mục dự án:** `D:\video_gensystem`  
 **Phiên bản ứng dụng:** `0.1.0`  
-**Giai đoạn hiện tại:** Phần H — Motion pipeline
-**Trạng thái:** Bước 25–28 hoàn thành về code/test; Ken Burns chạy media thật, Wan/Veo live còn phụ thuộc service/model
+**Giai đoạn hiện tại:** Phần I — Preview, QA và export
+**Trạng thái:** Bước 29–30 hoàn thành về code/test và acceptance FFmpeg thật; acceptance trong DaVinci Resolve đang chờ cài ứng dụng/corpus production
 
 **Nguyên tắc phạm vi:** hệ thống là nền tảng sản xuất hình/voice/motion tổng quát cho mọi series. “Xích Bích”, “Tam Quốc” và các tên nhân vật lịch sử chỉ là test fixture/ví dụ acceptance, không phải domain được hard-code.
 
@@ -244,6 +244,24 @@
 - Motion worker giữ provider/FFmpeg ngoài DB transaction, tạo immutable Asset `video`, metadata/checksum và idempotency theo Job.
 - Acceptance queue 15 shot tổng quát; priority GPU, retry reset rõ ràng và chosen motion constraint hoạt động.
 
+### Bước 29 — Preview player
+
+- Screen Preview hỗ trợ Shot, Scene và Full; shot proxy mux voice/visual thành H.264 + AAC để HTML5 player phát đồng bộ.
+- Mọi proxy được chuẩn hóa 1280×720, FPS theo Episode; scene/full concat theo `order_index` bằng FFmpeg.
+- Shot thiếu chosen visual hoặc file bị mất dùng placeholder đỏ có `shot_id`; danh sách placeholder vẫn chính xác khi tái dùng proxy cache.
+- Acceptance thật 3 shot tạo đủ shot proxy, scene preview và full preview 3.021 giây, 1280×720, 12 FPS, H.264/AAC.
+
+### Bước 30 — Asset checker và export package
+
+- Asset checker thực thi toàn bộ nhóm rule tự động mục 17: shot ID/audio/chosen visual, file/checksum/metadata, job unresolved, resolution/FPS/codec, fill policy/timing, placeholder, frame đen/trắng và loop boundary heuristic.
+- Nội dung, character consistency, warp/flicker, map, nhịp dựng, music/SFX và seamless loop vẫn được liệt kê là QA thủ công, không báo pass giả.
+- Sinh `qa/report.html` và `qa/report.json`; acceptance 3 shot hoàn chỉnh đạt PASS, 0 error/0 warning, timing 3.0/3.0 giây.
+- Export hard-link nếu cùng volume, fallback copy; tên media bắt đầu bằng `shot_id`; sinh `project_manifest.json`, `README_IMPORT.txt` và `shot_manifest.csv` UTF-8.
+- Yêu cầu Bước 30 ghi 16 cột trong khi doc mục 18 liệt kê 17 trường. Quyết định: CSV giữ đúng 16 trường dựng timeline, còn `notes` nằm trong `project_manifest.json`.
+- Rebuild export không xóa package cũ mà đổi tên thành `export_backup_<timestamp>` trước khi tạo package mới.
+- Acceptance artifact được giữ tại `live_test/step29_30_acceptance/.../generic-preview-episode` (ignored khỏi Git).
+- Không tìm thấy DaVinci Resolve trong registry, Start Menu hoặc các path cài phổ biến trên C:/D:; vì vậy chưa thể xác nhận thao tác import/timeline bằng ứng dụng Resolve thật trên máy này.
+
 ### Giới hạn live provider
 
 - Manual provider đã chạy end-to-end bằng PNG thật.
@@ -259,7 +277,7 @@
 
 ```text
 python -m app --version: 0.1.0
-pytest: 89 passed
+pytest: 92 passed
 alembic check: No new upgrade operations detected
 PRAGMA journal_mode: wal
 PRAGMA busy_timeout: 5000
@@ -275,7 +293,8 @@ transactional script import và Streamlit AppTest end-to-end, warning/failure ro
 constraints của chosen asset, bảo mật đường dẫn, queue priority, SQLite lock retry,
 hai worker claim đồng thời, stale recovery, ba image provider adapters, retry timeout,
 image Asset versioning/cost, gallery UI và batch 80 shot, Ken Burns MP4 thật,
-video metadata, Wan/Veo adapters, motion fill/fallback, motion worker và Motion Queue UI.
+video metadata, Wan/Veo adapters, motion fill/fallback, motion worker, Motion Queue UI,
+preview shot/scene/full với placeholder/cache, QA HTML/JSON, export 16 cột và rebuild backup.
 
 ## Git
 
@@ -287,5 +306,6 @@ video metadata, Wan/Veo adapters, motion fill/fallback, motion worker và Motion
 
 ## Bước tiếp theo
 
-Chờ đặc tả bước tiếp theo sau Bước 28. Wan live acceptance cần ComfyUI đang chạy,
-workflow Wan 2.2 API JSON và model tương thích; Veo live là optional và có thể phát sinh phí.
+- Cài/mở DaVinci Resolve rồi import acceptance package hoặc corpus production để hoàn tất DoD GUI còn lại của Bước 30.
+- Khi có corpus production, chạy lại end-to-end ở kích thước tập thật; fixture hiện tại chứng minh workflow tổng quát, không hard-code Xích Bích.
+- Wan live acceptance vẫn cần ComfyUI đang chạy, workflow Wan 2.2 API JSON và model tương thích; Veo live là optional và có thể phát sinh phí.

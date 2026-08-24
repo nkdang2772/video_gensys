@@ -58,7 +58,7 @@ $env:VIDEO_GENSYSTEM_LIBRARY_ROOT = "D:\video_gensystem\library"
 streamlit run streamlit_app.py
 ```
 
-The current MVP screens are Series, Episodes, Import, Shot Manager, References, Image Gallery, and Motion Queue. Local path inputs are available for desktop workflows; upload controls remain available for scripts, multiple WAV files, and reference versions.
+The MVP screens are Series, Episodes, Import, Shot Manager, References, Image Gallery, Motion Queue, Preview, and QA & Export. Local path inputs are available for desktop workflows; upload controls remain available for scripts, multiple WAV files, and reference versions.
 
 ## SQLite job queue
 
@@ -81,6 +81,12 @@ The Image Gallery queues work. Run image jobs from Python with `app.workers.imag
 - Motion fill defaults to `extend`; `loop` must be explicit and `split` produces deterministic sub-shot plans. Three generative failures fall through sprite support to Ken Burns so a Shot is never silently empty.
 
 Run queued motion jobs with `app.workers.motion_gen.run_motion_worker`. Motion variations are immutable `video` Assets and become selected only through Motion Queue.
+
+## Preview, QA and DaVinci export
+
+- Shot previews mux chosen voice and visual media into synchronized H.264/AAC proxies. Scene/full previews concatenate normalized 1280x720 proxies in shot order; missing visuals become explicit red `shot_id` placeholders.
+- Asset Checker writes `qa/report.html` and `qa/report.json`, verifies chosen files/checksums/media metadata, queue state, timing/fill policy, placeholder coverage and technical black/white samples. Creative/content QA remains manual.
+- Export writes chosen media plus `project_manifest.json`, `README_IMPORT.txt` and a UTF-8 `shot_manifest.csv` with exactly 16 timeline fields. Shot notes remain in the project manifest. Rebuilds archive the previous package instead of deleting it.
 
 ## Foundation guarantees
 

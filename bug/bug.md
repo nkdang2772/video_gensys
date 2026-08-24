@@ -6,8 +6,8 @@
 ## Tổng quan
 
 - Lỗi đang mở: **0**
-- Lỗi đã đóng: **26**
-- Test regression hiện tại: **89/89 pass**
+- Lỗi đã đóng: **28**
+- Test regression hiện tại: **92/92 pass**
 
 ## BUG-001 — SQLAlchemy không suy luận được kiểu `created_at`
 
@@ -269,6 +269,26 @@
 - **Nguyên nhân:** Fixture chọn FFmpeg đầu tiên trong một Conda environment cũ (`speed_est`), binary đó không được build với libx264.
 - **Cách sửa:** Tạo environment chuẩn `video-gensystem` từ `environment.yml`; fixture ưu tiên environment này và chỉ nhận FFmpeg khi danh sách encoder có `libx264`.
 - **Regression test:** Ken Burns 5 giây tạo đúng 150 frame/30 FPS ở acceptance thật; motion suite 7/7 và full suite 89/89 pass.
+
+## BUG-027 — Proxy cache làm mất trạng thái placeholder
+
+- **Trạng thái:** Đã đóng
+- **Mức độ:** Cao, QA integrity
+- **Phát hiện:** Review lần hai sau acceptance preview đầu tiên.
+- **Triệu chứng:** Khi shot/full proxy đã tồn tại và được tái dùng, result trả danh sách placeholder rỗng dù shot vẫn thiếu chosen visual.
+- **Nguyên nhân:** Fast path của cache return trước khi kiểm tra chosen asset và file thật.
+- **Cách sửa:** Tính trạng thái visual/placeholder trước cache return; sequence cache cũng dựng lại danh sách placeholder từ DB + filesystem.
+- **Regression test:** Render full preview có `s003` thiếu visual, gọi lại với `force=false` vẫn trả chính xác `("s003",)`.
+
+## BUG-028 — Export cũ chặn rebuild hoặc dễ dẫn đến xóa thủ công
+
+- **Trạng thái:** Đã đóng
+- **Mức độ:** Trung bình, recoverability
+- **Phát hiện:** Review workflow export lặp lại sau khi editor yêu cầu package mới.
+- **Triệu chứng:** Folder `/export` không rỗng làm lần export sau thất bại; giải pháp thủ công dễ xóa nhầm package đã giao.
+- **Nguyên nhân:** Chưa có lifecycle an toàn cho package export trước đó.
+- **Cách sửa:** Khi người dùng chọn rebuild, rename package hiện tại thành `export_backup_<timestamp>` rồi tạo package mới; không recursive delete/overwrite.
+- **Regression test:** Export 3 shot hai lần, package mới hợp lệ và đúng một backup cũ vẫn tồn tại.
 
 ## Quy ước cập nhật
 
