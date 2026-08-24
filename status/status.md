@@ -4,8 +4,8 @@
 **Thư mục dự án:** `D:\video_gensystem`  
 **Phiên bản ứng dụng:** `0.1.0`  
 **Giai đoạn hiện tại:** Audit/revalidation tuần tự theo DoD nghiêm ngặt
-**Gate chính thức:** **Bước 1 — PASS; Bước 2 — đang revalidate**
-**Trạng thái:** Code lịch sử tồn tại đến Bước 30, nhưng chỉ Bước 1 đã đủ branch/PR/CI/merge để được đánh PASS chính thức. Không bắt đầu Bước 3 trước khi Bước 2 có PR, CI xanh và merge.
+**Gate chính thức:** **Bước 1–2 — PASS; Bước 3 — đang revalidate**
+**Trạng thái:** Code lịch sử tồn tại đến Bước 30, nhưng chỉ Bước 1–2 đã đủ branch/PR/CI/merge để được đánh PASS chính thức. Không bắt đầu Bước 4 trước khi Bước 3 có PR, CI xanh và merge.
 
 **Nguyên tắc phạm vi:** hệ thống là nền tảng sản xuất hình/voice/motion tổng quát cho mọi series. “Xích Bích”, “Tam Quốc” và các tên nhân vật lịch sử chỉ là test fixture/ví dụ acceptance, không phải domain được hard-code.
 
@@ -15,9 +15,11 @@
 
 - **Bước 1 PASS:** branch `codex/step1-revalidation-pr`, PR [#1](https://github.com/nkdang2772/video_gensys/pull/1), 2/2 GitHub checks xanh và merge commit `5c41e24` trên `main`.
 - Bằng chứng Bước 1: CLI thật `python -m app --version` trả `0.1.0`; option không hợp lệ trả non-zero và thông báo argparse; full CI **94/94 pass**.
-- **Bước 2 đang revalidate** trên branch `codex/step2-revalidation`: database mới chạy `alembic upgrade head` đến revision `0002`; raw query trả `journal_mode=wal` và `busy_timeout=5000`.
-- Targeted Bước 2 hiện **3/3 pass**, gồm happy path PRAGMA/migration và error case revision Alembic không tồn tại.
-- Các mô tả “đã hoàn thành” bên dưới là inventory implementation lịch sử, không phải dấu check DoD cho Bước 2–30.
+- **Bước 2 PASS:** branch `codex/step2-revalidation`, PR [#2](https://github.com/nkdang2772/video_gensys/pull/2), 2/2 GitHub checks xanh và merge commit `e2bd5e4` trên `main`.
+- Bằng chứng Bước 2: database mới chạy `alembic upgrade head` đến revision `0002`; raw query trả `journal_mode=wal`, `busy_timeout=5000`; happy/error targeted **3/3 pass**; full CI **95/95 pass**.
+- **Bước 3 đang revalidate** trên branch `codex/step3-revalidation`: SQLite CLI liệt kê đúng 10 bảng nghiệp vụ; partial unique index có đúng điều kiện `is_chosen = 1 AND shot_id IS NOT NULL`.
+- Targeted Bước 3 **2/2 pass**: happy path xác nhận toàn bộ cột mục 4 và raw insert một record/bảng; error path xác nhận foreign key, CHECK và partial unique constraint. Full regression **96/96 pass**.
+- Các mô tả “đã hoàn thành” bên dưới là inventory implementation lịch sử, không phải dấu check DoD cho Bước 3–30.
 
 ## Tech stack đã chốt
 

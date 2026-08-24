@@ -6,9 +6,19 @@
 ## Tổng quan
 
 - Lỗi đang mở: **0**
-- Lỗi đã đóng: **29**
-- Test regression gần nhất trên `main`: **94/94 pass**
-- Targeted Bước 2 trên branch `codex/step2-revalidation`: **3/3 pass**
+- Lỗi đã đóng: **30**
+- Test regression gần nhất trên `main`: **95/95 pass**
+- Bước 3 trên branch `codex/step3-revalidation`: targeted **2/2 pass**, full regression **96/96 pass**
+
+## BUG-030 — Test schema chưa tách happy/error và chưa khóa contract cột
+
+- **Trạng thái:** Đã đóng
+- **Mức độ:** Trung bình, khoảng trống DoD
+- **Phát hiện:** Revalidation Bước 3 sau khi PR #2 được merge.
+- **Triệu chứng:** Một test duy nhất vừa insert thành công vừa thử partial unique failure; danh sách 10 bảng được kiểm tra nhưng field contract mục 4 chưa được assert tường minh.
+- **Nguyên nhân:** Test migration ban đầu ưu tiên smoke test ngắn thay vì chia hai acceptance path độc lập.
+- **Cách sửa:** Tách happy/error thành hai test; thêm expected column set cho toàn bộ 10 bảng; error path kiểm tra foreign key, CHECK version dương và partial unique chosen asset.
+- **Regression test:** `tests/test_migration.py` pass 2/2; full suite pass 96/96.
 
 ## BUG-029 — Bước 2 thiếu error-case test riêng cho Alembic
 
