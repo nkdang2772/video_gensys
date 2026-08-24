@@ -115,3 +115,18 @@ def test_create_shot_rejects_unsafe_identifier(session, tmp_path: Path) -> None:
             shot_id="../unsafe",
             order_index=1,
         )
+
+
+def test_create_shot_rejects_string_instead_of_character_list(
+    session, tmp_path: Path
+) -> None:
+    episode = create_test_episode(session, tmp_path)
+    with pytest.raises(ValueError, match="list or tuple"):
+        create_shot(
+            session,
+            episode_id=episode.id,
+            shot_id="s001",
+            order_index=1,
+            characters_json="hero",
+        )
+    assert episode.shots == []
