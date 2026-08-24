@@ -34,6 +34,8 @@ def render_with_fallback(
         raise ValueError("max_generative_attempts must be at least one")
     source = Path(source_image).expanduser().resolve()
     destination = Path(output_path).expanduser().resolve()
+    if destination.exists():
+        raise ValueError(f"Motion fallback output already exists: {destination}")
     errors: list[str] = []
     for attempt in range(1, max_generative_attempts + 1):
         destination.unlink(missing_ok=True)

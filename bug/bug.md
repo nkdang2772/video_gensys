@@ -458,6 +458,16 @@
 - **Cách sửa:** Wrapper chung retry tối đa hai lần chỉ cho `TimeoutExpired`; OSError/metadata/file hỏng vẫn fail ngay, timeout liên tục vẫn raise `FFprobeTimeoutError`.
 - **Regression test:** Giả lập timeout lần đầu rồi gọi FFprobe thật lần hai phải pass; timeout liên tục phải gọi đúng hai lần với 30 giây rồi raise. Targeted liên quan 8/8, full 131/131.
 
+## BUG-045 — Motion fallback tự xóa output đã tồn tại
+
+- **Trạng thái:** Đã đóng
+- **Mức độ:** Cao, an toàn dữ liệu
+- **Phát hiện:** Revalidation Bước 27 với một `output_path` chứa video có sẵn.
+- **Triệu chứng:** `render_with_fallback()` gọi `unlink()` trước lần generate đầu tiên, làm mất file cũ dù provider sau đó thành công hay thất bại.
+- **Nguyên nhân:** Logic dọn file tạm giữa các lần retry không phân biệt output do lượt chạy hiện tại tạo ra với file đã tồn tại trước khi hàm được gọi.
+- **Cách sửa:** Từ chối ngay nếu output đích đã tồn tại; cleanup giữa các attempt chỉ còn áp dụng cho file do workflow hiện tại tạo.
+- **Regression test:** Output có sẵn phải raise `ValueError`, provider không được gọi và nội dung file cũ giữ nguyên. Targeted 10/10, full 133/133.
+
 ## Quy ước cập nhật
 
 Mỗi lỗi mới cần ghi:

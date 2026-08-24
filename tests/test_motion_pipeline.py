@@ -312,6 +312,24 @@ def test_wan_failure_falls_back_to_kenburns(
     assert probe_video(result.output_path, ffprobe_path=ffprobe_executable).frame_count == 12
 
 
+def test_motion_fallback_rejects_existing_output_without_overwriting(tmp_path: Path) -> None:
+    output = tmp_path / "existing-fallback.mp4"
+    output.write_bytes(b"preserve-existing-video")
+    provider = FailingVideoProvider()
+
+    with pytest.raises(ValueError, match="already exists"):
+        render_with_fallback(
+            provider,
+            make_image(tmp_path / "fallback-source.png"),
+            "motion",
+            output,
+            {},
+        )
+
+    assert provider.calls == 0
+    assert output.read_bytes() == b"preserve-existing-video"
+
+
 def test_queue_fifteen_motion_jobs_retry_choose_and_worker(
     engine, tmp_path: Path, ffmpeg_executable: str, ffprobe_executable: str
 ) -> None:
