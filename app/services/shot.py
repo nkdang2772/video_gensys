@@ -41,6 +41,8 @@ SHOT_ID_PATTERN = re.compile(r"^[a-z0-9][a-z0-9_-]*$")
 
 
 def _normalize_characters(value: list[str] | tuple[str, ...]) -> list[str]:
+    if not isinstance(value, (list, tuple)):
+        raise ValueError("characters_json must be a list or tuple of string IDs")
     characters = list(value)
     if any(not isinstance(character, str) or not character for character in characters):
         raise ValueError("characters_json must contain non-empty string IDs")

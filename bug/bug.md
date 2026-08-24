@@ -6,9 +6,9 @@
 ## Tổng quan
 
 - Lỗi đang mở: **0**
-- Lỗi đã đóng: **37**
-- Test regression gần nhất trên `main`: **107/107 pass** (Bước 11, PR #11, merge commit `4a14767`)
-- Bước 12 trên branch `codex/step12-revalidation`: targeted **4/4 pass**, full regression **108/108 pass**
+- Lỗi đã đóng: **38**
+- Test regression gần nhất trên `main`: **108/108 pass** (Bước 12, PR #12, merge commit `ca05527`)
+- Bước 13 trên branch `codex/step13-revalidation`: targeted **6/6 pass**, full regression **109/109 pass**
 
 ## OBS-001 — Một lượt batch FFprobe 80 WAV thiếu hai file, chưa tái hiện
 
@@ -387,6 +387,16 @@
 - **Nguyên nhân:** Cột JSON chưa dùng mutable change tracking.
 - **Cách sửa:** Áp dụng `MutableDict.as_mutable(JSON)` cho `ReferenceVersion.descriptor_json`; immutable listener hiện nhận và từ chối mutation tại chỗ.
 - **Regression test:** Mutation tại chỗ phải raise `ImmutableReferenceVersionError`; rollback/refresh giữ descriptor gốc. Targeted 8/8, full 107/107 và `alembic check` sạch.
+
+## BUG-038 — Chuỗi characters_json bị tách thành nhiều character ID
+
+- **Trạng thái:** Đã đóng
+- **Mức độ:** Cao, data integrity
+- **Phát hiện:** Revalidation Bước 13 với `characters_json="hero"`.
+- **Triệu chứng:** Service tạo Shot với `characters_json=["h", "e", "r", "o"]` thay vì từ chối sai kiểu.
+- **Nguyên nhân:** `_normalize_characters()` gọi `list(value)` trước khi kiểm tra input là list/tuple; Python coi chuỗi là iterable ký tự.
+- **Cách sửa:** Từ chối mọi input không phải `list` hoặc `tuple` trước khi sao chép/validate nội dung.
+- **Regression test:** Truyền chuỗi phải raise `ValueError` và không tạo Shot. Targeted 6/6, full 109/109.
 
 ## Quy ước cập nhật
 
