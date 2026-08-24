@@ -6,8 +6,19 @@
 ## Tổng quan
 
 - Lỗi đang mở: **0**
-- Lỗi đã đóng: **28**
-- Test regression hiện tại: **92/92 pass**
+- Lỗi đã đóng: **29**
+- Test regression gần nhất trên `main`: **94/94 pass**
+- Targeted Bước 2 trên branch `codex/step2-revalidation`: **3/3 pass**
+
+## BUG-029 — Bước 2 thiếu error-case test riêng cho Alembic
+
+- **Trạng thái:** Đã đóng
+- **Mức độ:** Trung bình, vi phạm quy trình DoD
+- **Phát hiện:** Audit tuần tự sau khi Bước 1 được merge bằng PR #1.
+- **Triệu chứng:** SQLite/WAL và migration chỉ có happy-path test; chưa chứng minh Alembic thất bại rõ ràng khi người dùng yêu cầu revision không tồn tại.
+- **Nguyên nhân:** Test Foundation ban đầu tập trung vào migration/schema thành công và constraint của Bước 3.
+- **Cách sửa:** Bổ sung subprocess test chạy `alembic upgrade not-a-real-revision`, yêu cầu return code khác 0 và thông báo không tìm thấy revision.
+- **Regression test:** `tests/test_db.py` cùng `tests/test_migration.py` pass 3/3; full suite phải pass trước khi tạo PR Bước 2.
 
 ## BUG-001 — SQLAlchemy không suy luận được kiểu `created_at`
 
