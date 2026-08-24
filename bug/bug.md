@@ -6,9 +6,19 @@
 ## Tổng quan
 
 - Lỗi đang mở: **0**
-- Lỗi đã đóng: **30**
-- Test regression gần nhất trên `main`: **95/95 pass**
-- Bước 3 trên branch `codex/step3-revalidation`: targeted **2/2 pass**, full regression **96/96 pass**
+- Lỗi đã đóng: **31**
+- Test regression gần nhất trên `main`: **96/96 pass**
+- Bước 4 trên branch `codex/step4-revalidation`: targeted **6/6 pass**, full regression **97/97 pass**
+
+## BUG-031 — ORM metadata thiếu 17 CHECK constraint của migration
+
+- **Trạng thái:** Đã đóng
+- **Mức độ:** Cao, schema parity
+- **Phát hiện:** Rà soát trực tiếp migration và ORM trong revalidation Bước 4.
+- **Triệu chứng:** Database production tạo bởi Alembic có 17 CHECK constraint cho Reference, ReferenceVersion, Shot, Asset và Job; database test tạo bằng `Base.metadata.create_all()` không có các constraint này.
+- **Nguyên nhân:** Model chỉ khai báo cột, relationship, unique index/constraint; CHECK constraint mới tồn tại trong `0001_initial.py`.
+- **Cách sửa:** Khai báo lại đúng tên và biểu thức của cả 17 CHECK constraint trong `__table_args__`; thêm test khóa tập tên constraint; CRUD test gọi `session.delete()` trực tiếp cho cả 10 model trong một unit-of-work để tránh cascade che coverage.
+- **Regression test:** `tests/test_models.py` pass 6/6 không warning; `alembic check` không phát hiện operation mới; full suite pass 97/97.
 
 ## BUG-030 — Test schema chưa tách happy/error và chưa khóa contract cột
 

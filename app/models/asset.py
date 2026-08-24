@@ -3,7 +3,7 @@ from __future__ import annotations
 from datetime import datetime
 from typing import TYPE_CHECKING
 
-from sqlalchemy import Boolean, ForeignKey, Index, String, Text, UniqueConstraint, text
+from sqlalchemy import Boolean, CheckConstraint, ForeignKey, Index, String, Text, UniqueConstraint, text
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.db import Base
@@ -25,6 +25,15 @@ class Asset(Base):
             "asset_type",
             unique=True,
             sqlite_where=text("is_chosen = 1 AND shot_id IS NOT NULL"),
+        ),
+        CheckConstraint(
+            "asset_type IN ('audio','image','video','proxy','subtitle','music','sfx')",
+            name="ck_asset_type",
+        ),
+        CheckConstraint("version > 0", name="ck_asset_version_positive"),
+        CheckConstraint(
+            "duration_sec IS NULL OR duration_sec >= 0",
+            name="ck_asset_duration",
         ),
     )
 
@@ -55,4 +64,3 @@ class Asset(Base):
     episode: Mapped["Episode"] = relationship(back_populates="assets")
     shot: Mapped["Shot | None"] = relationship(back_populates="assets")
     qa_notes: Mapped[list["SimpleQaNote"]] = relationship(back_populates="asset")
-
