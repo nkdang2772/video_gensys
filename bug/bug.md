@@ -312,6 +312,17 @@
 - **Live verification:** Artifact mới tại `live_test/step30_resolve_24_acceptance/test_export_package_has_exactl0/generic-preview-episode`; FFprobe xác nhận H.264 1280×720, 24/1 FPS, 72 frame. Resolve project `VideoGenSystem Step30 PASS 24fps` nhận đúng 24.000 FPS và audio 48 kHz/2 kênh, tạo `Timeline 2`, phát hết đến `01:00:03:01` rồi lưu thành công.
 - **Ghi chú điều tra:** Lượt import đầu hiển thị 12 FPS do hộp thoại còn trỏ tới artifact diagnostic cũ. Sau khi đối chiếu absolute path và import đúng artifact mới, Resolve hiển thị 24 FPS; đây là lỗi quy trình test, không phải lỗi code còn lại.
 
+## BUG-031 — ORM metadata thiếu CHECK constraints đã có trong migration
+
+- **Trạng thái:** Mở
+- **Mức độ:** Cao, Foundation/schema drift
+- **Phát hiện:** Recheck DoD ngày 2026-08-24 bằng `conda run -n video-gensystem alembic check`.
+- **Triệu chứng:** `alembic upgrade head` pass nhưng `alembic check` đề xuất 17 thao tác `remove_constraint` trên `reference`, `reference_version`, `shot`, `asset` và `job`.
+- **Nguyên nhân gốc:** Migration `0001_initial.py` khai báo các named `CheckConstraint`, còn ORM model tương ứng chỉ khai báo unique/index hoặc không có `__table_args__` chứa các constraints đó. Vì vậy `Base.metadata` không khớp schema database dù constraints thực tế vẫn tồn tại và full suite 93/93 pass.
+- **Ảnh hưởng:** Database runtime hiện chưa mất constraint, nhưng Alembic autogenerate không sạch và có thể sinh migration xóa bảo vệ dữ liệu nếu người phát triển chấp nhận diff mà không review.
+- **Cách sửa dự kiến:** Khai báo lại chính xác 17 named `CheckConstraint` trong ORM models, thêm regression test chạy `alembic check` trên database migrated mới và xác nhận không có upgrade operation.
+- **Gate:** Chưa sửa trong lượt recheck vì gate chính thức vẫn ở Bước 1; không bắt đầu/recheck chính thức Bước 4 trước khi dependency 1–3 pass.
+
 ## Quy ước cập nhật
 
 Mỗi lỗi mới cần ghi:

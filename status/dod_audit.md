@@ -18,7 +18,7 @@
 | 1 | Repo, stack, version CLI, workflow CI | Không remote/CI run; thiếu error-case test | **NOT PASS — current gate** |
 | 2 | Alembic chạy local; WAL/busy timeout test | Thiếu error-case test riêng; dependency 1 chưa pass | **NOT CHECKED** |
 | 3 | Migration 10 bảng; raw SQL insert/constraint tests | Dependency upstream chưa pass | **NOT CHECKED** |
-| 4 | CRUD mọi model; invariant happy/error | Dependency upstream chưa pass | **NOT CHECKED** |
+| 4 | CRUD mọi model; invariant happy/error | Dependency upstream chưa pass; `alembic check` phát hiện 17 CHECK constraints thiếu trong ORM metadata (`BUG-031`) | **NOT CHECKED** |
 | 5 | Resolve path hợp lệ và traversal error tests | Dependency upstream chưa pass | **NOT CHECKED** |
 | 6 | 5 Series tests + CLI create | Chưa revalidate sau gate 1–5 | **NOT CHECKED** |
 | 7 | Snapshot/pin và disk/database rollback tests | Chưa revalidate sau gate 6 | **NOT CHECKED** |
@@ -49,6 +49,7 @@
 ## Audit test policy
 
 - Full suite hiện tại: **93 passed**; đây là regression baseline, không phải bằng chứng rằng 30/30 DoD đã pass.
+- Recheck ngày 2026-08-24: version, dependency, migration upgrade, full suite và artifact Bước 30 pass; `alembic check` fail do ORM metadata không khai báo 17 CHECK constraints đã có trong migration/database. Đây là gap thật chưa được full suite bắt trước đó.
 - Các bước có khoảng trống error-case rõ ràng: **1, 2, 14, 15**.
 - Các màn hình chưa có acceptance đúng thao tác DoD: **17, 18, 24, 28**; Bước 16 còn thiếu UI error path.
 - Live provider còn thiếu: **22/ComfyUI image** và **26/Wan ComfyUI**.
@@ -76,7 +77,7 @@ Kết luận: quy tắc **1 bước = 1 branch = 1 PR = 1 merge** đã không đ
 
 - Không có demo log/artifact xác nhận demo chỉ diễn ra ở cuối từng phần; trạng thái hiện tại là **không đủ bằng chứng**, không đánh pass.
 - Tất cả commit hiện có được tạo cùng ngày 2026-08-24; chưa có bằng chứng blocker nào kéo dài quá một ngày công.
-- Blocker đang theo dõi, tuổi blocker bắt đầu từ 2026-08-24: CI/remote cho Bước 1; ComfyUI image cho 22; Wan live cho 26. Lỗi tương thích FPS DaVinci của Bước 30 đã đóng kỹ thuật ngày 2026-08-24. Nếu blocker còn mở sau một ngày công phải alert người dùng.
+- Blocker đang theo dõi, tuổi blocker bắt đầu từ 2026-08-24: CI/remote cho Bước 1; ORM/Alembic constraint drift cho 4; ComfyUI image cho 22; Wan live cho 26. Lỗi tương thích FPS DaVinci của Bước 30 đã đóng kỹ thuật ngày 2026-08-24. Nếu blocker còn mở sau một ngày công phải alert người dùng.
 
 ## Thứ tự phục hồi hợp lệ
 

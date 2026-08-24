@@ -13,6 +13,17 @@
 
 > **Cảnh báo audit 2026-08-24:** Các mục “đã hoàn thành” bên dưới mô tả implementation/test evidence lịch sử, không phải dấu check DoD. Audit phát hiện commit đã gộp nhiều bước, không có branch/PR/remote/CI run, một số UI/live acceptance còn thiếu. Ma trận chính thức nằm tại [dod_audit.md](dod_audit.md).
 
+## Recheck DoD gần nhất — 2026-08-24
+
+- `python -m app --version`: PASS, trả `0.1.0`.
+- `pip check`: PASS, không có dependency hỏng.
+- `alembic upgrade head`: PASS trên database local.
+- Full suite: PASS, **93/93 test** trong 20.68 giây.
+- SQLite: database có WAL và đủ 10 bảng nghiệp vụ. `tests/test_db.py` trong full suite xác nhận mọi connection do app mở đặt `busy_timeout=5000`; raw SQLite CLI mở connection riêng không áp dụng listener của app.
+- Bước 30 artifact: QA PASS, 0 error/0 warning; manifest `davinci_resolve` 24 FPS; FFprobe xác nhận H.264/AAC, 1280×720, 24 FPS, 72 frame, audio 48 kHz/2 kênh, duration 3.021333 giây.
+- **FAIL mới:** `alembic check` phát hiện 17 CHECK constraints có trong migration/database nhưng thiếu trong ORM metadata. Database không bị xóa constraint; lỗi nằm ở khả năng autogenerate/schema drift. Theo dõi tại `BUG-031`.
+- Gate chính thức vẫn là **Bước 1 — NOT PASS** do chưa có Git remote/CI run và thiếu error-case cho version CLI. Không dùng kết quả các bước sau để vượt gate.
+
 ## Tech stack đã chốt
 
 - Python 3.11+; Conda environment chuẩn pin Python 3.11, venv kiểm thử hiện dùng Python 3.12.7.
@@ -286,7 +297,8 @@
 ```text
 python -m app --version: 0.1.0
 pytest: 93 passed
-alembic check: No new upgrade operations detected
+alembic upgrade head: PASS
+alembic check: FAIL — 17 CHECK constraints missing from ORM metadata (BUG-031)
 PRAGMA journal_mode: wal
 PRAGMA busy_timeout: 5000
 Số bảng nghiệp vụ: 10
