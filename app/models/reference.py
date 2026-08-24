@@ -4,6 +4,7 @@ from datetime import datetime
 from typing import TYPE_CHECKING, Any
 
 from sqlalchemy import Boolean, CheckConstraint, DateTime, ForeignKey, JSON, String, Text, UniqueConstraint
+from sqlalchemy.ext.mutable import MutableDict
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.db import Base
@@ -61,7 +62,7 @@ class ReferenceVersion(Base):
     reference_id: Mapped[int] = mapped_column(ForeignKey("reference.id", ondelete="CASCADE"), nullable=False)
     version: Mapped[int] = mapped_column(nullable=False)
     file_path: Mapped[str] = mapped_column(Text, nullable=False)
-    descriptor_json: Mapped[dict[str, Any] | None] = mapped_column(JSON)
+    descriptor_json: Mapped[dict[str, Any] | None] = mapped_column(MutableDict.as_mutable(JSON))
     checksum: Mapped[str] = mapped_column(String(128), nullable=False)
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), default=utc_now, nullable=False

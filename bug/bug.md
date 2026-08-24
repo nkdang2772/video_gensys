@@ -6,9 +6,9 @@
 ## Tổng quan
 
 - Lỗi đang mở: **0**
-- Lỗi đã đóng: **36**
-- Test regression gần nhất trên `main`: **105/105 pass** (Bước 9, PR #9, merge commit `562bdd8`)
-- Bước 10 trên branch `codex/step10-revalidation`: targeted **8/8 pass**, full regression **106/106 pass**
+- Lỗi đã đóng: **37**
+- Test regression gần nhất trên `main`: **106/106 pass** (Bước 10, PR #10, merge commit `85400a3`)
+- Bước 11 trên branch `codex/step11-revalidation`: targeted **8/8 pass**, `alembic check` sạch, full regression **107/107 pass**
 
 ## OBS-001 — Một lượt batch FFprobe 80 WAV thiếu hai file, chưa tái hiện
 
@@ -377,6 +377,16 @@
 - **Nguyên nhân:** Khi nối dòng kế tiếp, parser gọi `rstrip("\n")` và xóa newline đã ghi cho dòng trống.
 - **Cách sửa:** Nối dòng tiếp theo mà không xóa newline đã tích lũy; bước normalize chỉ loại whitespace ngoài cùng.
 - **Regression test:** TEXT và VISUAL có một dòng trống giữa hai đoạn phải giữ đúng `"line 1\n\nline 2"`.
+
+## BUG-037 — Sửa tại chỗ descriptor JSON né được immutable guard
+
+- **Trạng thái:** Đã đóng
+- **Mức độ:** Cao, tính bất biến dữ liệu
+- **Phát hiện:** Revalidation Bước 11 với mutation `version.descriptor_json["label"] = ...`.
+- **Triệu chứng:** Gán lại toàn bộ field bị chặn, nhưng sửa trực tiếp dictionary không làm SQLAlchemy đánh dấu `ReferenceVersion` dirty nên `before_flush` không chạy.
+- **Nguyên nhân:** Cột JSON chưa dùng mutable change tracking.
+- **Cách sửa:** Áp dụng `MutableDict.as_mutable(JSON)` cho `ReferenceVersion.descriptor_json`; immutable listener hiện nhận và từ chối mutation tại chỗ.
+- **Regression test:** Mutation tại chỗ phải raise `ImmutableReferenceVersionError`; rollback/refresh giữ descriptor gốc. Targeted 8/8, full 107/107 và `alembic check` sạch.
 
 ## Quy ước cập nhật
 
