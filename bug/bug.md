@@ -331,6 +331,16 @@
 - **Cách sửa:** Khi người dùng chọn rebuild, rename package hiện tại thành `export_backup_<timestamp>` rồi tạo package mới; không recursive delete/overwrite.
 - **Regression test:** Export 3 shot hai lần, package mới hợp lệ và đúng một backup cũ vẫn tồn tại.
 
+## BUG-033 — Series update lỗi vẫn có thể để lại thay đổi một phần
+
+- **Trạng thái:** Đã đóng
+- **Mức độ:** Cao, transaction/data integrity
+- **Phát hiện:** Revalidation Bước 6 với tổ hợp update slug hợp lệ và name rỗng.
+- **Triệu chứng:** `update_series()` raise `ValueError` cho name rỗng nhưng ORM object vẫn giữ slug mới ở trạng thái dirty; một `commit()` sau đó có thể lưu slug dù update đã báo thất bại.
+- **Nguyên nhân:** Hàm gán slug vào model trước khi validate toàn bộ trường đầu vào.
+- **Cách sửa:** Chuẩn hóa và validate tất cả thay đổi vào bản sao trước; chỉ mutate ORM model sau khi mọi validation đều pass.
+- **Regression test:** Update đồng thời `slug="unexpected-slug"` và `name="   "` phải raise; commit/refresh sau lỗi vẫn giữ nguyên name và slug cũ.
+
 ## Quy ước cập nhật
 
 Mỗi lỗi mới cần ghi:

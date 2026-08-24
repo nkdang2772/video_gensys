@@ -57,6 +57,19 @@ def test_update_series_changes_allowed_fields(session) -> None:
     assert updated.default_fps == 24.0
 
 
+def test_update_series_validation_error_does_not_leave_partial_changes(session) -> None:
+    series = create_series(session, name="Original name", slug="original-slug")
+    session.commit()
+
+    with pytest.raises(ValueError, match="name cannot be empty"):
+        update_series(session, series.id, slug="unexpected-slug", name="   ")
+
+    session.commit()
+    session.refresh(series)
+    assert series.name == "Original name"
+    assert series.slug == "original-slug"
+
+
 def test_slug_stays_globally_unique_after_soft_delete(session) -> None:
     series = create_series(session, name="Tam Quốc")
     session.commit()
@@ -64,4 +77,3 @@ def test_slug_stays_globally_unique_after_soft_delete(session) -> None:
     session.commit()
     with pytest.raises(DuplicateSeriesSlugError):
         create_series(session, name="Tam Quoc")
-
