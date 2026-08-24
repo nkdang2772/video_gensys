@@ -4,8 +4,8 @@
 **Thư mục dự án:** `D:\video_gensystem`  
 **Phiên bản ứng dụng:** `0.1.0`  
 **Giai đoạn hiện tại:** Audit/revalidation tuần tự theo DoD nghiêm ngặt
-**Gate chính thức:** **Bước 1–24 — PASS; Bước 25 — đang revalidate**
-**Trạng thái:** Code lịch sử tồn tại đến Bước 30, nhưng chỉ Bước 1–24 đã đủ branch/PR/CI/merge để được đánh PASS chính thức. Bước 25 đã đạt test local nhưng chưa được đánh PASS trước khi có PR, CI xanh và merge; Bước 26 chưa bắt đầu.
+**Gate chính thức:** **Bước 1–25 — PASS; Bước 26 — chưa bắt đầu revalidation**
+**Trạng thái:** Code lịch sử tồn tại đến Bước 30, nhưng chỉ Bước 1–25 đã đủ branch/PR/CI/merge để được đánh PASS chính thức. Bước 26 chưa được bắt đầu theo quy trình revalidation tuần tự.
 
 **Nguyên tắc phạm vi:** hệ thống là nền tảng sản xuất hình/voice/motion tổng quát cho mọi series. “Xích Bích”, “Tam Quốc” và các tên nhân vật lịch sử chỉ là test fixture/ví dụ acceptance, không phải domain được hard-code.
 
@@ -61,8 +61,9 @@
 - Bằng chứng Bước 23: 10 image job tạo đúng 10 Asset version mới với `is_chosen=false` và cost; pinned ReferenceVersion được dùng. Provider timeout hai lần rồi thành công lần ba; timeout liên tục dừng đúng `max_attempts=3`, Job giữ failed và không tạo Asset. Targeted **3/3 pass**, full CI **127/127 pass**.
 - **Bước 24 PASS:** branch `codex/step24-revalidation`, PR [#26](https://github.com/nkdang2772/video_gensys/pull/26), CI đầu phát hiện BUG-043; commit sửa đạt 2/2 checks và merge commit `49b41f1` trên `main`.
 - Bằng chứng Bước 24: AppTest hiển thị variation grid, chọn version và queue regenerate với prompt sửa; manual batch bị chặn rõ ràng. Nút batch Google Flow queue đúng 80 job `overnight` theo `character_batch_key`; worker acceptance tạo đủ 80 Asset cho 80 shot tổng quát. Targeted **4/4 pass**, full CI **129/129 pass**.
-- **Bước 25 đang revalidate** trên branch `codex/step25-revalidation`: Ken Burns render MP4 5 giây bằng `zoompan`; targeted xác nhận 30 FPS, 150 frame, 320×180, H.264 và không ghi đè output. Live artifact từ ảnh Google Flow đạt 5.0 giây, 30 FPS, 150 frame, 1376×768, H.264, SHA-256 `72B9E61280948895FAE90BEE521B0E91B9CC8BEC58CC8B8922CB98A266E38ED7`. BUG-044 harden FFprobe timeout retry. Targeted liên quan **8/8 pass**, full regression **131/131 pass**; PR/CI/merge còn chờ.
-- Các mô tả “đã hoàn thành” bên dưới là inventory implementation lịch sử, không phải dấu check DoD cho Bước 25–30.
+- **Bước 25 PASS:** branch `codex/step25-revalidation`, PR [#27](https://github.com/nkdang2772/video_gensys/pull/27), 2/2 GitHub checks xanh và merge commit `77af71b` trên `main`.
+- Bằng chứng Bước 25: Ken Burns render MP4 5 giây bằng `zoompan`; targeted xác nhận 30 FPS, 150 frame, 320×180, H.264 và không ghi đè output. Live artifact từ ảnh Google Flow đạt 5.0 giây, 30 FPS, 150 frame, 1376×768, H.264, SHA-256 `72B9E61280948895FAE90BEE521B0E91B9CC8BEC58CC8B8922CB98A266E38ED7`. BUG-044 harden FFprobe timeout retry. Targeted liên quan **8/8 pass**, full CI **131/131 pass**.
+- Các mô tả “đã hoàn thành” bên dưới là inventory implementation lịch sử, không phải dấu check DoD cho Bước 26–30.
 
 ## Tech stack đã chốt
 
