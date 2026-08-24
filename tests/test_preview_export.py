@@ -4,13 +4,16 @@ import csv
 import hashlib
 import json
 import wave
+import zipfile
 from pathlib import Path
 
+import opentimelineio as otio
 import pytest
 from PIL import Image
 from sqlalchemy.orm import Session
 
 from app.export.package import MANIFEST_COLUMNS, export_episode_package
+from app.export.otio_timeline import TimelineEntry, export_otio_timeline
 from app.media.concat import render_sequence_preview, render_shot_preview
 from app.media.ffprobe import probe_video
 from app.models import Asset, Episode, Scene, Series, Shot
@@ -185,16 +188,77 @@ def test_export_package_has_exactly_sixteen_columns(
     assert len(reader.fieldnames) == 16
     assert len(rows) == result.shot_count == 3
     assert result.media_file_count == 6
+    assert result.timeline_path.is_file()
+    assert result.timeline_bundle_path.is_file()
+    assert result.transition_count == 2
     assert all((result.export_path / row["audio_path"]).is_file() for row in rows)
     assert all((result.export_path / row["image_path"]).is_file() for row in rows)
+    timeline = otio.adapters.read_from_file(str(result.timeline_path))
+    assert timeline.name == "Generic Series — Generic Episode"
+    assert timeline.duration().to_seconds() == pytest.approx(3.0)
+    assert len(timeline.video_tracks()) == 1
+    assert len(timeline.audio_tracks()) == 1
+    video_children = list(timeline.video_tracks()[0])
+    assert [item.name for item in video_children if isinstance(item, otio.schema.Clip)] == [
+        "s001", "s002", "s003"
+    ]
+    assert sum(isinstance(item, otio.schema.Transition) for item in video_children) == 2
+    assert [
+        item.name for item in timeline.audio_tracks()[0] if isinstance(item, otio.schema.Clip)
+    ] == ["s001 voice", "s002 voice", "s003 voice"]
+    bundled = otio.adapters.read_from_file(str(result.timeline_bundle_path))
+    assert bundled.duration().to_seconds() == pytest.approx(3.0)
+    with zipfile.ZipFile(result.timeline_bundle_path) as archive:
+        names = set(archive.namelist())
+    assert {"content.otio", "version.txt"} <= names
+    assert len([name for name in names if name.startswith("media/")]) == 6
     project = json.loads(result.project_manifest_path.read_text(encoding="utf-8"))
     assert project["shot_notes"] == {
         "s001": "Editorial note 1", "s002": "Editorial note 2", "s003": "Editorial note 3"
     }
+    assert project["timeline"] == {
+        "otio": "timeline.otio",
+        "otioz": "timeline.otioz",
+        "duration_sec": 3.0,
+        "transition": "cross_dissolve",
+        "transition_count": 2,
+        "transition_duration_sec": 0.25,
+    }
     assert "16 cột" in result.readme_path.read_text(encoding="utf-8")
+    assert "timeline.otioz" in result.readme_path.read_text(encoding="utf-8")
     rebuilt = export_episode_package(
         session, episode.id, ffmpeg_path=ffmpeg_executable,
         ffprobe_path=ffprobe_executable, force=True,
     )
     assert rebuilt.manifest_path.is_file()
     assert len(list(Path(episode.root_path).glob("export_backup_*"))) == 1
+
+
+def test_otio_export_rejects_invalid_transition_without_partial_files(tmp_path: Path) -> None:
+    image = tmp_path / "image.png"
+    audio = tmp_path / "voice.wav"
+    image.write_bytes(b"image")
+    audio.write_bytes(b"audio")
+    destination = tmp_path / "export"
+
+    with pytest.raises(ValueError, match="between 0 and 5"):
+        export_otio_timeline(
+            destination,
+            [
+                TimelineEntry(
+                    shot_id="s001",
+                    visual_path=image,
+                    visual_is_image=True,
+                    audio_path=audio,
+                    duration_sec=1.0,
+                    audio_duration_sec=1.0,
+                )
+            ],
+            fps=24,
+            width=1920,
+            height=1080,
+            transition_duration_sec=-0.1,
+        )
+
+    assert not (destination / "timeline.otio").exists()
+    assert not (destination / "timeline.otioz").exists()

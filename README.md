@@ -86,7 +86,7 @@ Run queued motion jobs with `app.workers.motion_gen.run_motion_worker`. Motion v
 
 - Shot previews mux chosen voice and visual media into synchronized H.264/AAC proxies. Scene/full previews concatenate normalized 1280x720 proxies in shot order; missing visuals become explicit red `shot_id` placeholders.
 - Asset Checker writes `qa/report.html` and `qa/report.json`, verifies chosen files/checksums/media metadata, queue state, timing/fill policy, placeholder coverage and technical black/white samples. Creative/content QA remains manual.
-- Export writes chosen media plus `project_manifest.json`, `README_IMPORT.txt` and a UTF-8 `shot_manifest.csv` with exactly 16 timeline fields. Shot notes remain in the project manifest. Rebuilds archive the previous package instead of deleting it.
+- Export writes chosen media plus `project_manifest.json`, `README_IMPORT.txt` and a UTF-8 `shot_manifest.csv` with exactly 16 timeline fields. It also creates `timeline.otio` and a self-contained `timeline.otioz`: DaVinci Resolve Free can import the bundle to build editable V1 visual/A1 voice tracks automatically, including configurable simple cross-dissolves (0 seconds produces cuts). Shot notes remain in the project manifest. Rebuilds archive the previous package instead of deleting it.
 
 ## Foundation guarantees
 
