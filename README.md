@@ -2,6 +2,8 @@
 
 Desktop/local production platform that turns prepared scripts and voiceovers into a media package for DaVinci Resolve.
 
+The platform is domain-agnostic and supports any series or subject. Historical series and episode names used in tests are examples only; production services contain no story-specific logic.
+
 ## Stack
 
 - Python 3.11+
@@ -37,6 +39,14 @@ FFprobe is provided by the Conda `ffmpeg` package. If it is not on PATH, set its
 
 ```powershell
 $env:VIDEO_GENSYSTEM_FFPROBE_PATH = "C:\path\to\ffprobe.exe"
+```
+
+Reference CLI example:
+
+```powershell
+python cli.py reference create --name "Character Example" --slug character_example --type character --scope shared_across_series
+python cli.py reference add-version --reference-id 1 --file .\reference.png --library-root .\library
+python cli.py reference list-versions --reference-id 1
 ```
 
 ## Foundation guarantees

@@ -6,9 +6,10 @@ dependencies:
   - pip>=24
   - sqlite>=3.45
   - ffmpeg>=6
+  - matplotlib>=3.8,<4
+  - numpy>=1.26,<3
   - sqlalchemy>=2.0,<3
   - alembic>=1.13,<2
   - streamlit>=1.37,<2
   - pytest>=7.4,<9
   - pytest-cov>=5,<7
-

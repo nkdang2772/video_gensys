@@ -3,8 +3,10 @@
 **Cập nhật:** 2026-08-24  
 **Thư mục dự án:** `D:\video_gensystem`  
 **Phiên bản ứng dụng:** `0.1.0`  
-**Giai đoạn hiện tại:** Phần C — Import
-**Trạng thái:** Bước 8–10 hoàn thành
+**Giai đoạn hiện tại:** Phần D — Reference + Shot Manager
+**Trạng thái:** Bước 11–14 hoàn thành
+
+**Nguyên tắc phạm vi:** hệ thống là nền tảng sản xuất hình/voice/motion tổng quát cho mọi series. “Xích Bích”, “Tam Quốc” và các tên nhân vật lịch sử chỉ là test fixture/ví dụ acceptance, không phải domain được hard-code.
 
 ## Tech stack đã chốt
 
@@ -15,6 +17,7 @@
 - SQLite cho database local.
 - Alembic cho database migration.
 - Pytest cho unit/integration test nền tảng.
+- NumPy và Matplotlib cho xử lý PCM/waveform local.
 
 ## Hạng mục đã hoàn thành
 
@@ -99,11 +102,42 @@
 
 **Giới hạn dữ liệu kiểm thử:** chưa tìm thấy corpus kịch bản và voice Xích Bích production trong các workspace. Fixture 80 shot và 80 WAV PCM sinh trong test xác minh đầy đủ logic/kích thước batch, nhưng cần chạy lại acceptance test khi corpus production được cung cấp.
 
+### Bước 11 — Reference + Version CRUD
+
+- Tạo reference series-specific hoặc shared cho character/style/location/prop/map.
+- Reference slug unique toàn cục; explicit ID giữ được underscore như `character_example`.
+- Version tăng tuần tự, copy vào library managed path, checksum SHA-256 và không ghi đè.
+- `ReferenceVersion` chặn sửa mọi scalar field sau khi đã persist.
+- File nguồn thay đổi không ảnh hưởng file version đã lưu.
+- CLI hỗ trợ create, add-version và list-versions; test tạo một character và v1/v2/v3.
+
+### Bước 12 — Character batch key
+
+- Validate duplicate/invalid ID, canonical sort, JSON serialize và SHA-256.
+- Thứ tự character đầu vào không làm đổi key.
+- `[]` và `[null]` tạo key khác nhau đúng DoD.
+
+### Bước 13 — Shot service
+
+- Create/update/bulk update Shot với whitelist field và safe shot ID.
+- Tự regenerate `character_batch_key` khi `characters_json` thay đổi.
+- Cross-field invariant primary character được kiểm tra trước flush.
+- Update đồng thời characters/primary hoạt động; update lỗi rollback savepoint, không để object bẩn.
+- Bulk update 20 shot chỉ flush một lần và tạo đúng batch key.
+
+### Bước 14 — Waveform + audio cutter
+
+- Sinh waveform PNG bằng NumPy/Matplotlib với backend headless.
+- Đọc PCM WAV 8/16/24/32-bit và không ghi đè source.
+- Cắt WAV theo timestamp bằng frame boundary, output atomic và cleanup khi lỗi.
+- Silence detection chỉ trả gợi ý interval, không tự cắt/xác nhận.
+- Test cắt WAV thật dài 5 phút thành 10 segment; tổng duration lệch không quá 0.1 giây.
+
 ## Kết quả kiểm thử gần nhất
 
 ```text
 python -m app --version: 0.1.0
-pytest: 46 passed
+pytest: 64 passed
 alembic check: No new upgrade operations detected
 PRAGMA journal_mode: wal
 PRAGMA busy_timeout: 5000
@@ -113,8 +147,9 @@ pip check: No broken requirements found
 
 Kiểm thử đã bao phủ migration bằng raw SQL, CRUD cho mọi ORM model, Series CRUD,
 CLI create series, Episode snapshot/pin/folder tree, parser TXT/CSV/JSON, FFprobe với
-WAV thật, import/re-import 80 audio Asset, warning/failure rollback, constraints của
-chosen asset, invariant nhân vật và bảo mật đường dẫn.
+WAV thật, import/re-import 80 audio Asset, ReferenceVersion immutable/checksum,
+character batch key, bulk update 20 Shot, waveform/silence/cắt WAV 5 phút,
+warning/failure rollback, constraints của chosen asset và bảo mật đường dẫn.
 
 ## Git
 
@@ -126,6 +161,6 @@ chosen asset, invariant nhân vật và bảo mật đường dẫn.
 
 ## Bước tiếp theo
 
-Phần D — Reference + Shot Manager, bắt đầu bằng Bước 11: Reference + Version CRUD.
+Phần E — UI cơ bản, bắt đầu bằng Bước 15: Series/Episode list.
 
-Chưa triển khai Bước 11 trở đi để bảo đảm đúng thứ tự dependency trong `build_order.txt`.
+Chưa triển khai Bước 15 trở đi để bảo đảm đúng thứ tự dependency trong `build_order.txt`.

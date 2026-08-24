@@ -6,8 +6,8 @@
 ## Tổng quan
 
 - Lỗi đang mở: **0**
-- Lỗi đã đóng: **11**
-- Test regression hiện tại: **46/46 pass**
+- Lỗi đã đóng: **15**
+- Test regression hiện tại: **64/64 pass**
 
 ## BUG-001 — SQLAlchemy không suy luận được kiểu `created_at`
 
@@ -118,6 +118,46 @@
 - **Nguyên nhân:** Parser và import service chưa giới hạn character set của shot ID.
 - **Cách sửa:** Chỉ chấp nhận chữ, số, `_` và `-`; import service kiểm tra lại dữ liệu database trước mọi thao tác copy.
 - **Regression test:** Parser từ chối `../s001`; voice import từ chối unsafe shot ID và không tạo file.
+
+## BUG-012 — Validator Shot quá sớm cản update characters và primary cùng lúc
+
+- **Trạng thái:** Đã đóng
+- **Mức độ:** Cao
+- **Phát hiện:** Khi triển khai Shot update service.
+- **Triệu chứng:** Đổi từ primary cũ sang tổ hợp characters/primary mới có thể fail ở field đầu tiên dù trạng thái cuối hợp lệ.
+- **Nguyên nhân:** Cross-field invariant được kiểm tra trong validator riêng của từng field trước khi field còn lại được gán.
+- **Cách sửa:** Field validator chỉ kiểm tra type/duplicate cục bộ; invariant chéo được kiểm tra bằng method và Session `before_flush`. Service gán characters trước primary trong savepoint.
+- **Regression test:** Đổi atomic từ `old` sang `[new, support]` với primary `new` thành công.
+
+## BUG-013 — Explicit reference ID có underscore bị đổi thành dấu gạch ngang
+
+- **Trạng thái:** Đã đóng
+- **Mức độ:** Trung bình
+- **Phát hiện:** Rà soát CLI DoD `tao_thao` và character IDs.
+- **Triệu chứng:** Dùng slugifier của Series biến `tao_thao` thành `tao-thao`, gây lệch với ID trong `characters_json`.
+- **Nguyên nhân:** Series slug và reference/entity ID dùng chung normalization policy.
+- **Cách sửa:** Reference có normalizer riêng, giữ `_` khi người dùng cung cấp explicit slug; slug tự sinh từ name vẫn thân thiện.
+- **Regression test:** CLI và service giữ nguyên explicit reference slug `tao_thao`/`character_example`.
+
+## BUG-014 — ReferenceVersion có thể bị sửa sau khi persist
+
+- **Trạng thái:** Đã đóng
+- **Mức độ:** Cao
+- **Phát hiện:** Khi triển khai yêu cầu immutable version.
+- **Triệu chứng:** ORM mặc định cho phép UPDATE file path, checksum, version hoặc descriptor cũ.
+- **Nguyên nhân:** Database constraint chỉ bảo đảm unique version, không cấm UPDATE.
+- **Cách sửa:** Session `before_flush` kiểm tra history của mọi scalar field immutable và raise `ImmutableReferenceVersionError`.
+- **Regression test:** Sửa `file_path` của version cũ bị từ chối; file đã copy vẫn giữ nguyên khi source thay đổi.
+
+## BUG-015 — Shot update lỗi có thể để object mang giá trị tạm trong Session
+
+- **Trạng thái:** Đã đóng
+- **Mức độ:** Trung bình
+- **Phát hiện:** Rà soát failure path của update service.
+- **Triệu chứng:** Validator raise sau khi đã gán attribute có thể để object dirty nếu caller quên rollback.
+- **Nguyên nhân:** Update nhiều field không có savepoint riêng.
+- **Cách sửa:** Bọc update và bulk update trong nested transaction; lỗi rollback về state trước operation.
+- **Regression test:** Update primary không thuộc character set raise và object vẫn giữ primary hợp lệ cũ.
 
 ## Quy ước cập nhật
 

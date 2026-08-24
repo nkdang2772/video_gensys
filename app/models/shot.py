@@ -2,8 +2,8 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING, Any
 
-from sqlalchemy import Boolean, ForeignKey, JSON, String, Text, UniqueConstraint
-from sqlalchemy.orm import Mapped, mapped_column, relationship, validates
+from sqlalchemy import Boolean, ForeignKey, JSON, String, Text, UniqueConstraint, event
+from sqlalchemy.orm import Mapped, Session, mapped_column, relationship, validates
 
 from app.db import Base
 
@@ -62,8 +62,6 @@ class Shot(Base):
             raise ValueError("characters_json must be a list of non-empty character IDs")
         if len(characters) != len(set(characters)):
             raise ValueError("characters_json may not contain duplicate character IDs")
-        if self.primary_character_id is not None and self.primary_character_id not in characters:
-            raise ValueError("primary_character_id must belong to characters_json")
         return characters
 
     @validates("primary_character_id")
@@ -75,3 +73,16 @@ class Shot(Base):
             raise ValueError("primary_character_id must be null when characters_json is empty")
         return value
 
+    def validate_character_invariants(self) -> None:
+        characters = self.characters_json or []
+        if self.primary_character_id is not None and self.primary_character_id not in characters:
+            raise ValueError("primary_character_id must belong to characters_json")
+        if not characters and self.primary_character_id is not None:
+            raise ValueError("primary_character_id must be null when characters_json is empty")
+
+
+@event.listens_for(Session, "before_flush")
+def validate_shot_invariants_before_flush(session: Session, _flush_context, _instances) -> None:
+    for instance in session.new.union(session.dirty):
+        if isinstance(instance, Shot):
+            instance.validate_character_invariants()
