@@ -3,12 +3,21 @@
 **Cập nhật:** 2026-08-24  
 **Thư mục dự án:** `D:\video_gensystem`  
 **Phiên bản ứng dụng:** `0.1.0`  
-**Giai đoạn hiện tại:** Phần I — Preview, QA và export
-**Trạng thái:** Bước 29–30 hoàn thành về code/test và acceptance FFmpeg thật; acceptance trong DaVinci Resolve đang chờ cài ứng dụng/corpus production
+**Giai đoạn hiện tại:** Audit/revalidation tuần tự theo DoD nghiêm ngặt
+**Gate chính thức:** **Bước 1 — PASS; Bước 2 — đang revalidate**
+**Trạng thái:** Code lịch sử tồn tại đến Bước 30, nhưng chỉ Bước 1 đã đủ branch/PR/CI/merge để được đánh PASS chính thức. Không bắt đầu Bước 3 trước khi Bước 2 có PR, CI xanh và merge.
 
 **Nguyên tắc phạm vi:** hệ thống là nền tảng sản xuất hình/voice/motion tổng quát cho mọi series. “Xích Bích”, “Tam Quốc” và các tên nhân vật lịch sử chỉ là test fixture/ví dụ acceptance, không phải domain được hard-code.
 
 **Quy ước vận hành:** trước mỗi giai đoạn triển khai hoặc sửa lỗi, phải đọc lại toàn bộ `status/status.md` và phần tổng quan/lỗi mới nhất trong `bug/bug.md` để đối chiếu dependency, giới hạn đã biết, test baseline và trạng thái Git.
+
+## Gate DoD gần nhất — 2026-08-24
+
+- **Bước 1 PASS:** branch `codex/step1-revalidation-pr`, PR [#1](https://github.com/nkdang2772/video_gensys/pull/1), 2/2 GitHub checks xanh và merge commit `5c41e24` trên `main`.
+- Bằng chứng Bước 1: CLI thật `python -m app --version` trả `0.1.0`; option không hợp lệ trả non-zero và thông báo argparse; full CI **94/94 pass**.
+- **Bước 2 đang revalidate** trên branch `codex/step2-revalidation`: database mới chạy `alembic upgrade head` đến revision `0002`; raw query trả `journal_mode=wal` và `busy_timeout=5000`.
+- Targeted Bước 2 hiện **3/3 pass**, gồm happy path PRAGMA/migration và error case revision Alembic không tồn tại.
+- Các mô tả “đã hoàn thành” bên dưới là inventory implementation lịch sử, không phải dấu check DoD cho Bước 2–30.
 
 ## Tech stack đã chốt
 
