@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import sqlite3
 import threading
 import time
 from concurrent.futures import ThreadPoolExecutor
@@ -184,6 +185,38 @@ def test_claim_retries_after_sqlite_busy(engine, session, tmp_path, monkeypatch)
         claimed = future.result(timeout=5)
 
     assert claimed is not None and claimed.id == queued_id
+
+
+def test_claim_raises_after_sqlite_busy_retry_limit(engine, session, tmp_path, monkeypatch) -> None:
+    episode = _create_episode(session, tmp_path)
+    enqueue(session, job_type="locked_task", episode_id=episode.id)
+    session.commit()
+    session.close()
+
+    def set_short_busy_timeout(dbapi_connection, _connection_record) -> None:
+        dbapi_connection.execute("PRAGMA busy_timeout=1")
+
+    engine.dispose()
+    event.listen(engine, "connect", set_short_busy_timeout)
+    locker = engine.raw_connection()
+    locker.execute("BEGIN IMMEDIATE")
+    delays: list[float] = []
+    monkeypatch.setattr("app.queue.worker.time.sleep", delays.append)
+    monkeypatch.setattr("app.queue.worker.random.uniform", lambda _start, _end: 0.0)
+    try:
+        with pytest.raises(sqlite3.OperationalError):
+            claim_next_job(
+                engine,
+                worker_pid=41501,
+                max_busy_retries=1,
+                base_delay=0.01,
+                jitter=0.01,
+            )
+    finally:
+        locker.rollback()
+        locker.close()
+
+    assert delays == [0.01]
 
 
 def test_invalid_handler_output_marks_job_failed(engine, tmp_path) -> None:
