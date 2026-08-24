@@ -6,7 +6,7 @@
 ## Tổng quan
 
 - Lỗi đang mở: **0**
-- Lỗi đã đóng: **28**
+- Lỗi đã đóng: **29**
 - Test regression hiện tại: **92/92 pass**
 
 ## BUG-001 — SQLAlchemy không suy luận được kiểu `created_at`
@@ -289,6 +289,16 @@
 - **Nguyên nhân:** Chưa có lifecycle an toàn cho package export trước đó.
 - **Cách sửa:** Khi người dùng chọn rebuild, rename package hiện tại thành `export_backup_<timestamp>` rồi tạo package mới; không recursive delete/overwrite.
 - **Regression test:** Export 3 shot hai lần, package mới hợp lệ và đúng một backup cũ vẫn tồn tại.
+
+## BUG-029 — Status đánh đồng code/test evidence với DoD PASS
+
+- **Trạng thái:** Đã đóng về mặt tài liệu; revalidation vẫn đang mở theo audit
+- **Mức độ:** Blocker, governance
+- **Phát hiện:** Recheck theo năm quy tắc DoD/test/branch-PR/demo/blocker của người dùng.
+- **Triệu chứng:** `status.md` gọi Bước 29–30 hoàn thành dù DaVinci acceptance chưa chạy; các bước provider/UI khác cũng dùng test mock hoặc service test thay cho live/UI DoD.
+- **Nguyên nhân:** Trạng thái trước đây theo dõi mức implementation/regression, không tách riêng completion gate nghiêm ngặt.
+- **Cách sửa:** Hạ gate chính thức về Bước 1, thêm `status/dod_audit.md` với ma trận 1–30 và ghi rõ mọi khoảng trống/Git deviation; không rewrite lịch sử để tạo bằng chứng giả.
+- **Regression kiểm soát:** Mọi cập nhật status sau audit phải ghi riêng `implementation evidence` và `official DoD status`; chỉ chuyển PASS khi có artifact/test/live evidence đúng DoD và dependency đã pass.
 
 ## Quy ước cập nhật
 

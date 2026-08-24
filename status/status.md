@@ -3,12 +3,15 @@
 **Cập nhật:** 2026-08-24  
 **Thư mục dự án:** `D:\video_gensystem`  
 **Phiên bản ứng dụng:** `0.1.0`  
-**Giai đoạn hiện tại:** Phần I — Preview, QA và export
-**Trạng thái:** Bước 29–30 hoàn thành về code/test và acceptance FFmpeg thật; acceptance trong DaVinci Resolve đang chờ cài ứng dụng/corpus production
+**Giai đoạn hiện tại:** Audit/revalidation theo DoD nghiêm ngặt
+**Gate chính thức:** **Bước 1 — NOT PASS**
+**Trạng thái:** Code tồn tại đến Bước 30 và regression 92/92 pass, nhưng không bước nào sau Bước 1 được đánh check chính thức cho đến khi CI thật và test gap của Bước 1 được đóng. Xem `status/dod_audit.md`.
 
 **Nguyên tắc phạm vi:** hệ thống là nền tảng sản xuất hình/voice/motion tổng quát cho mọi series. “Xích Bích”, “Tam Quốc” và các tên nhân vật lịch sử chỉ là test fixture/ví dụ acceptance, không phải domain được hard-code.
 
 **Quy ước vận hành:** trước mỗi giai đoạn triển khai hoặc sửa lỗi, phải đọc lại toàn bộ `status/status.md` và phần tổng quan/lỗi mới nhất trong `bug/bug.md` để đối chiếu dependency, giới hạn đã biết, test baseline và trạng thái Git.
+
+> **Cảnh báo audit 2026-08-24:** Các mục “đã hoàn thành” bên dưới mô tả implementation/test evidence lịch sử, không phải dấu check DoD. Audit phát hiện commit đã gộp nhiều bước, không có branch/PR/remote/CI run, một số UI/live acceptance còn thiếu. Ma trận chính thức nằm tại [dod_audit.md](dod_audit.md).
 
 ## Tech stack đã chốt
 
