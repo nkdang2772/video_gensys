@@ -44,15 +44,15 @@
 | 27 | Extend/split/loop/fallback tests thật bằng FFmpeg | Dependency 26 chưa pass | **BLOCKED BY 26** |
 | 28 | Queue 15 bằng provider test; screen mở được | Chưa queue/retry/chọn version qua UI acceptance | **NOT PASS** |
 | 29 | 3-shot/scene/full FFmpeg acceptance + placeholder error | Dependency 28 chưa pass | **BLOCKED BY 28** |
-| 30 | QA PASS; package 16 cột; Resolve 21 live import đủ 3 PNG + 3 WAV, proxy phát 3 giây và tạo timeline | Manifest/proxy dùng 12 FPS nhưng Resolve không hỗ trợ timeline 12 FPS; diagnostic phải dùng 24 FPS, nên chưa dựng đúng manifest | **NOT PASS — FPS compatibility bug** |
+| 30 | QA PASS; package 16 cột; export profile từ chối FPS không tương thích; proxy/manifest 24 FPS; Resolve 21 nhận 24.000 FPS, 1280×720, 48 kHz/2 ch; Timeline 2 phát hết đến `01:00:03:01` và lưu | Technical/live acceptance đã đủ, nhưng dependency 28→29 và gate Bước 1 chưa pass | **TECHNICAL/LIVE PASS; OFFICIAL NOT CHECKED** |
 
 ## Audit test policy
 
-- Full suite hiện tại: **92 passed**; đây là regression baseline, không phải bằng chứng rằng 30/30 DoD đã pass.
+- Full suite hiện tại: **93 passed**; đây là regression baseline, không phải bằng chứng rằng 30/30 DoD đã pass.
 - Các bước có khoảng trống error-case rõ ràng: **1, 2, 14, 15**.
 - Các màn hình chưa có acceptance đúng thao tác DoD: **17, 18, 24, 28**; Bước 16 còn thiếu UI error path.
 - Live provider còn thiếu: **22/ComfyUI image** và **26/Wan ComfyUI**.
-- Acceptance external app cho Bước 30 đã chạy một phần trong Resolve thật; còn thiếu lượt PASS sau khi sửa tương thích FPS 12→24 và regenerate package.
+- Acceptance external app cho Bước 30 đã PASS kỹ thuật trong Resolve thật với package/proxy 24 FPS; vẫn không được check chính thức trước các dependency upstream.
 
 ## Audit Git/PR
 
@@ -76,7 +76,7 @@ Kết luận: quy tắc **1 bước = 1 branch = 1 PR = 1 merge** đã không đ
 
 - Không có demo log/artifact xác nhận demo chỉ diễn ra ở cuối từng phần; trạng thái hiện tại là **không đủ bằng chứng**, không đánh pass.
 - Tất cả commit hiện có được tạo cùng ngày 2026-08-24; chưa có bằng chứng blocker nào kéo dài quá một ngày công.
-- Blocker đang theo dõi, tuổi blocker bắt đầu từ 2026-08-24: CI/remote cho Bước 1; ComfyUI image cho 22; Wan live cho 26; tương thích FPS DaVinci cho 30. Nếu còn mở sau một ngày công phải alert người dùng.
+- Blocker đang theo dõi, tuổi blocker bắt đầu từ 2026-08-24: CI/remote cho Bước 1; ComfyUI image cho 22; Wan live cho 26. Lỗi tương thích FPS DaVinci của Bước 30 đã đóng kỹ thuật ngày 2026-08-24. Nếu blocker còn mở sau một ngày công phải alert người dùng.
 
 ## Thứ tự phục hồi hợp lệ
 
@@ -87,4 +87,4 @@ Kết luận: quy tắc **1 bước = 1 branch = 1 PR = 1 merge** đã không đ
 5. Chạy live ComfyUI image để đóng 22 rồi mới revalidate 23–24.
 6. Revalidate 25; chạy Wan live để đóng 26 rồi mới 27–28.
 7. Revalidate 29 sau 28.
-8. Sau khi sửa FPS package sang mức Resolve hỗ trợ, regenerate và import/dựng/phát lại trong DaVinci Resolve thật để đóng 30.
+8. Bằng chứng kỹ thuật/live 24 FPS cho Bước 30 đã hoàn tất; chỉ revalidate/check chính thức sau khi 28 và 29 pass theo dependency.

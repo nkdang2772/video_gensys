@@ -23,6 +23,20 @@ MANIFEST_COLUMNS = (
     "motion_provider", "hero_flag", "camera_motion_json", "motion_fill_policy", "subtitle_path",
 )
 SAFE_COMPONENT = re.compile(r"^[A-Za-z0-9][A-Za-z0-9_-]*$")
+DAVINCI_TIMELINE_FPS = (
+    16.0,
+    18.0,
+    23.976,
+    24.0,
+    25.0,
+    29.97,
+    30.0,
+    47.952,
+    48.0,
+    50.0,
+    59.94,
+    60.0,
+)
 
 
 @dataclass(frozen=True, slots=True)
@@ -34,6 +48,19 @@ class ExportResult:
     media_file_count: int
     shot_count: int
     qa_report: QaReport
+
+
+def validate_davinci_timeline_fps(fps: float) -> float:
+    """Return Resolve's canonical timeline FPS or reject an incompatible value."""
+    value = float(fps)
+    for supported in DAVINCI_TIMELINE_FPS:
+        if abs(value - supported) < 0.001:
+            return supported
+    allowed = ", ".join(f"{item:g}" for item in DAVINCI_TIMELINE_FPS)
+    raise ValueError(
+        f"Episode FPS {value:g} is not supported by the DaVinci Resolve export profile; "
+        f"choose one of: {allowed}"
+    )
 
 
 def _chosen(shot: Shot, kind: str) -> Asset | None:
@@ -69,6 +96,7 @@ def export_episode_package(
     episode = session.get(Episode, episode_id)
     if episode is None:
         raise ValueError(f"Episode not found: {episode_id}")
+    timeline_fps = validate_davinci_timeline_fps(episode.effective_fps)
     qa_report = run_asset_checks(session, episode_id, ffmpeg_path=ffmpeg_path, ffprobe_path=ffprobe_path)
     if not qa_report.passed and not allow_qa_errors:
         raise ValueError(f"Export blocked by {qa_report.error_count} QA error(s); review {qa_report.html_path}")
@@ -129,7 +157,8 @@ def export_episode_package(
             "schema_version": 1,
             "generated_at": datetime.now(UTC).isoformat(),
             "series": {"id": episode.series_id, "slug": episode.series.slug, "name": episode.series.name},
-            "episode": {"id": episode.id, "slug": episode.slug, "title": episode.title, "resolution": episode.effective_resolution, "fps": episode.effective_fps},
+            "episode": {"id": episode.id, "slug": episode.slug, "title": episode.title, "resolution": episode.effective_resolution, "fps": timeline_fps},
+            "editor_profile": {"name": "davinci_resolve", "timeline_fps": timeline_fps},
             "shot_count": len(shots),
             "shot_notes": notes,
             "qa": {"passed": qa_report.passed, "errors": qa_report.error_count, "warnings": qa_report.warning_count},
@@ -144,6 +173,7 @@ def export_episode_package(
             "4. Đặt audio_path cùng shot lên timeline và trim theo effective_duration_sec.\n"
             "5. Đối chiếu shot_id trên clip/audio trước khi dựng tiếp.\n"
             "6. Đọc qa/report.html tại episode root; QA nội dung, consistency, flicker, nhịp, music/SFX vẫn phải làm thủ công.\n\n"
+            "FPS trong manifest đã được kiểm tra với profile timeline của DaVinci Resolve; không tự đổi FPS khi import.\n"
             "CSV có đúng 16 cột dựng timeline. Notes nằm trong project_manifest.json để giải quyết chênh lệch 16/17 trường của đặc tả.\n",
             encoding="utf-8",
         )

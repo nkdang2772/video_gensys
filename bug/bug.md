@@ -302,14 +302,15 @@
 
 ## BUG-030 — Export manifest dùng FPS DaVinci Resolve không hỗ trợ
 
-- **Trạng thái:** Mở
+- **Trạng thái:** Đã đóng
 - **Mức độ:** Cao, chặn live DoD Bước 30
 - **Phát hiện:** Live acceptance ngày 2026-08-24 bằng DaVinci Resolve 21.0.4 trên project `VideoGenSystem Step30 Diagnostic`.
 - **Triệu chứng:** Package/proxy khai báo 1280×720, 12 FPS, 3 giây. Resolve import đủ 3 PNG + 3 WAV và phát proxy đúng chuỗi xanh–cam–tím, nhưng project settings không cho timeline 12 FPS; timeline diagnostic buộc dùng 24 FPS.
 - **Nguyên nhân gốc:** Episode/preview/export cho phép FPS tùy ý (fixture dùng 12), trong khi contract export chưa giới hạn hoặc chuyển đổi sang tập frame rate được DaVinci Resolve hỗ trợ.
-- **Thay đổi đã thực hiện:** Chưa sửa code trong lượt diagnostic; ghi nhận chính xác kết quả live và giữ Bước 30 ở trạng thái NOT PASS.
-- **Cách sửa dự kiến:** Validate/normalize export FPS theo profile editor, mặc định DaVinci 24 FPS; regenerate proxy/manifest/media với cùng FPS rồi chạy lại live acceptance.
-- **Regression test cần thêm:** Happy path export 24 FPS có proxy/manifest đồng nhất; error case từ chối hoặc normalize Episode 12 FPS một cách explicit; live Resolve import/timeline/playback tại 24 FPS.
+- **Thay đổi đã thực hiện:** Thêm profile tập FPS timeline được Resolve hỗ trợ; export canonicalize giá trị hợp lệ, từ chối FPS không tương thích trước QA/ghi package, ghi `editor_profile` cùng `timeline_fps` vào manifest và hướng dẫn không tự đổi FPS khi import. Fixture acceptance được chuyển sang 24 FPS.
+- **Regression test:** Happy path xác nhận proxy và manifest cùng 24 FPS; error case Episode 12 FPS raise rõ ràng và không ghi file export. Targeted 4/4 và full suite 93/93 pass.
+- **Live verification:** Artifact mới tại `live_test/step30_resolve_24_acceptance/test_export_package_has_exactl0/generic-preview-episode`; FFprobe xác nhận H.264 1280×720, 24/1 FPS, 72 frame. Resolve project `VideoGenSystem Step30 PASS 24fps` nhận đúng 24.000 FPS và audio 48 kHz/2 kênh, tạo `Timeline 2`, phát hết đến `01:00:03:01` rồi lưu thành công.
+- **Ghi chú điều tra:** Lượt import đầu hiển thị 12 FPS do hộp thoại còn trỏ tới artifact diagnostic cũ. Sau khi đối chiếu absolute path và import đúng artifact mới, Resolve hiển thị 24 FPS; đây là lỗi quy trình test, không phải lỗi code còn lại.
 
 ## Quy ước cập nhật
 

@@ -38,7 +38,7 @@ def _episode(session: Session, tmp_path: Path, count: int = 3) -> tuple[Episode,
     series = Series(slug="generic-series", name="Generic Series")
     episode = Episode(
         series=series, episode_number=1, slug="generic-episode", title="Generic Episode",
-        effective_resolution="1280x720", effective_fps=12, effective_aspect_ratio="16:9",
+        effective_resolution="1280x720", effective_fps=24, effective_aspect_ratio="16:9",
         root_path=str(root),
     )
     scene = Scene(episode=episode, scene_number=1, title="Opening", order_index=1)
@@ -104,7 +104,7 @@ def test_preview_three_shots_scene_and_full_with_red_placeholder(
     assert cached.placeholder_shot_ids == ("s003",)
     metadata = probe_video(full_result.output_path, ffprobe_path=ffprobe_executable)
     assert (metadata.width, metadata.height) == (1280, 720)
-    assert metadata.frame_rate == pytest.approx(12)
+    assert metadata.frame_rate == pytest.approx(24)
     assert metadata.duration_sec == pytest.approx(3.0, abs=0.15)
 
 
@@ -152,6 +152,8 @@ def test_export_package_has_exactly_sixteen_columns(
     assert all((result.export_path / row["audio_path"]).is_file() for row in rows)
     assert all((result.export_path / row["image_path"]).is_file() for row in rows)
     project = json.loads(result.project_manifest_path.read_text(encoding="utf-8"))
+    assert project["episode"]["fps"] == 24.0
+    assert project["editor_profile"] == {"name": "davinci_resolve", "timeline_fps": 24.0}
     assert project["shot_notes"] == {
         "s001": "Editorial note 1", "s002": "Editorial note 2", "s003": "Editorial note 3"
     }
@@ -162,3 +164,21 @@ def test_export_package_has_exactly_sixteen_columns(
     )
     assert rebuilt.manifest_path.is_file()
     assert len(list(Path(episode.root_path).glob("export_backup_*"))) == 1
+
+
+def test_export_rejects_fps_unsupported_by_davinci_profile(
+    session: Session, tmp_path: Path, ffmpeg_executable: str, ffprobe_executable: str
+) -> None:
+    episode, _scene, _shots = _episode(session, tmp_path, 1)
+    episode.effective_fps = 12
+    session.flush()
+
+    with pytest.raises(ValueError, match=r"Episode FPS 12 .* not supported.*DaVinci Resolve"):
+        export_episode_package(
+            session,
+            episode.id,
+            ffmpeg_path=ffmpeg_executable,
+            ffprobe_path=ffprobe_executable,
+        )
+
+    assert not any((Path(episode.root_path) / "export").iterdir())

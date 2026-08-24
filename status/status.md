@@ -5,7 +5,7 @@
 **Phiên bản ứng dụng:** `0.1.0`  
 **Giai đoạn hiện tại:** Audit/revalidation theo DoD nghiêm ngặt
 **Gate chính thức:** **Bước 1 — NOT PASS**
-**Trạng thái:** Code tồn tại đến Bước 30 và regression 92/92 pass, nhưng không bước nào sau Bước 1 được đánh check chính thức cho đến khi CI thật và test gap của Bước 1 được đóng. Xem `status/dod_audit.md`.
+**Trạng thái:** Code tồn tại đến Bước 30 và regression 93/93 pass, nhưng không bước nào sau Bước 1 được đánh check chính thức cho đến khi CI thật và test gap của Bước 1 được đóng. Xem `status/dod_audit.md`.
 
 **Nguyên tắc phạm vi:** hệ thống là nền tảng sản xuất hình/voice/motion tổng quát cho mọi series. “Xích Bích”, “Tam Quốc” và các tên nhân vật lịch sử chỉ là test fixture/ví dụ acceptance, không phải domain được hard-code.
 
@@ -264,7 +264,11 @@
 - Rebuild export không xóa package cũ mà đổi tên thành `export_backup_<timestamp>` trước khi tạo package mới.
 - Acceptance artifact được giữ tại `live_test/step29_30_acceptance/.../generic-preview-episode` (ignored khỏi Git).
 - DaVinci Resolve 21.0.4 đã được cài tại `D:\davinci\Resolve.exe`. Diagnostic project thật `VideoGenSystem Step30 Diagnostic` đã import đủ 3 PNG + 3 WAV của export package, import `full_preview_720p.mp4`, tạo `Timeline 1`, phát hết chuỗi xanh–cam–tím 3 giây và lưu project.
-- Resolve nhận metadata proxy là 1280×720, 12 FPS, duration 3 giây; tuy nhiên Resolve 21 không cho chọn timeline 12 FPS trong project settings trên máy này. Timeline diagnostic phải dùng 24 FPS, nên đây chỉ là **partial live acceptance**, chưa đủ để đánh Bước 30 PASS “dựng theo manifest”. Xem `BUG-030`.
+- Export profile mới chỉ chấp nhận tập timeline FPS được DaVinci Resolve hỗ trợ; manifest ghi rõ `editor_profile=davinci_resolve` và timeline FPS canonical. Episode 12 FPS bị từ chối trước khi ghi package.
+- Acceptance 24 FPS mới nằm tại `live_test/step30_resolve_24_acceptance/test_export_package_has_exactl0/generic-preview-episode` (ignored khỏi Git). QA đạt PASS, 0 error/0 warning; proxy H.264/AAC là 1280×720, 24 FPS, 72 frame, khoảng 3 giây.
+- Live project `VideoGenSystem Step30 PASS 24fps` đã import đúng proxy mới, Resolve nhận 24.000 FPS, 1280×720, audio 48 kHz/2 kênh. `Timeline 2` dùng project settings 24 FPS, phát từ đầu đến khung tím cuối tại `01:00:03:01` và được lưu thành công.
+- Lần đầu kiểm tra thấy 12 FPS vì hộp thoại import còn giữ đường dẫn artifact diagnostic cũ; đối chiếu absolute path cho thấy đây là nhầm artifact kiểm thử, không phải regression của code mới. Sau khi import đúng path acceptance 24 FPS, metadata và playback đều đạt.
+- Bằng chứng kỹ thuật/live của Bước 30 đã hoàn tất, nhưng trạng thái DoD chính thức vẫn **NOT CHECKED** vì dependency upstream (đặc biệt Bước 28→29) và gate Bước 1 chưa pass. Xem `status/dod_audit.md` và `BUG-030`.
 
 ### Giới hạn live provider
 
@@ -281,7 +285,7 @@
 
 ```text
 python -m app --version: 0.1.0
-pytest: 92 passed
+pytest: 93 passed
 alembic check: No new upgrade operations detected
 PRAGMA journal_mode: wal
 PRAGMA busy_timeout: 5000
@@ -298,7 +302,8 @@ constraints của chosen asset, bảo mật đường dẫn, queue priority, SQL
 hai worker claim đồng thời, stale recovery, ba image provider adapters, retry timeout,
 image Asset versioning/cost, gallery UI và batch 80 shot, Ken Burns MP4 thật,
 video metadata, Wan/Veo adapters, motion fill/fallback, motion worker, Motion Queue UI,
-preview shot/scene/full với placeholder/cache, QA HTML/JSON, export 16 cột và rebuild backup.
+preview shot/scene/full với placeholder/cache, QA HTML/JSON, export 16 cột, rebuild backup,
+DaVinci FPS validation happy/error và live Resolve 24 FPS.
 
 ## Git
 
@@ -310,6 +315,6 @@ preview shot/scene/full với placeholder/cache, QA HTML/JSON, export 16 cột v
 
 ## Bước tiếp theo
 
-- Sửa export/manifest để dùng FPS mà DaVinci Resolve hỗ trợ (khuyến nghị 24 FPS), regenerate acceptance package rồi lặp lại import/timeline/playback trước khi xét Bước 30 PASS.
+- Quay về gate Bước 1: cấu hình Git remote, bổ sung error-case và chạy CI thật; sau đó revalidate tuần tự theo `status/dod_audit.md`. Không dùng technical/live PASS của Bước 30 để vượt dependency.
 - Khi có corpus production, chạy lại end-to-end ở kích thước tập thật; fixture hiện tại chứng minh workflow tổng quát, không hard-code Xích Bích.
 - Wan live acceptance vẫn cần ComfyUI đang chạy, workflow Wan 2.2 API JSON và model tương thích; Veo live là optional và có thể phát sinh phí.
