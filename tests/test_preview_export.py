@@ -108,6 +108,21 @@ def test_preview_three_shots_scene_and_full_with_red_placeholder(
     assert metadata.duration_sec == pytest.approx(3.0, abs=0.15)
 
 
+def test_shot_preview_rejects_shot_from_another_episode(session: Session, tmp_path: Path) -> None:
+    episode, _scene, _shots = _episode(session, tmp_path, 1)
+    foreign_shot = Shot(
+        episode_id=episode.id + 1,
+        shot_id="foreign-s001",
+        order_index=1,
+        audio_duration_sec=1.0,
+    )
+
+    with pytest.raises(ValueError, match="does not belong"):
+        render_shot_preview(episode, foreign_shot)
+
+    assert not (Path(episode.root_path) / "proxies" / "shots" / "foreign-s001_preview.mp4").exists()
+
+
 def test_checker_lists_placeholder_and_writes_html_json(
     session: Session, tmp_path: Path, ffmpeg_executable: str, ffprobe_executable: str
 ) -> None:

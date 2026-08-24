@@ -468,6 +468,16 @@
 - **Cách sửa:** Từ chối ngay nếu output đích đã tồn tại; cleanup giữa các attempt chỉ còn áp dụng cho file do workflow hiện tại tạo.
 - **Regression test:** Output có sẵn phải raise `ValueError`, provider không được gọi và nội dung file cũ giữ nguyên. Targeted 10/10, full 133/133.
 
+## BUG-046 — Shot preview cho phép trộn Shot và Episode khác nhau
+
+- **Trạng thái:** Đã đóng
+- **Mức độ:** Cao, cô lập dữ liệu episode
+- **Phát hiện:** Revalidation Bước 29 khi gọi `render_shot_preview()` với Episode A và Shot thuộc Episode B.
+- **Triệu chứng:** Hàm có thể resolve asset của Shot B tương đối theo root Episode A và ghi proxy sai thư mục mà không báo lỗi.
+- **Nguyên nhân:** Thiếu invariant kiểm tra `shot.episode_id == episode.id` tại boundary của media service.
+- **Cách sửa:** Từ chối trước mọi thao tác filesystem khi Shot không thuộc Episode preview.
+- **Regression test:** Shot ngoại lai phải raise `ValueError` và không tạo proxy. Targeted 4/4, full 136/136.
+
 ## Quy ước cập nhật
 
 Mỗi lỗi mới cần ghi:

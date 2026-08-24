@@ -70,6 +70,8 @@ def render_shot_preview(
     ffprobe_path: str | Path | None = None,
     force: bool = False,
 ) -> PreviewResult:
+    if episode.id is None or shot.episode_id != episode.id:
+        raise ValueError("Shot does not belong to the preview Episode")
     if width <= 0 or height <= 0 or width % 2 or height % 2:
         raise ValueError("Preview dimensions must be positive even integers")
     fps = float(episode.effective_fps)
