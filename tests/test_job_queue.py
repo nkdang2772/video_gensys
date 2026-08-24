@@ -5,7 +5,8 @@ import time
 from concurrent.futures import ThreadPoolExecutor
 from datetime import datetime, timedelta, timezone
 
-from sqlalchemy import event, select
+import pytest
+from sqlalchemy import event, func, select
 from sqlalchemy.orm import Session
 
 from app.models import Episode, Job, Series, Shot
@@ -81,6 +82,20 @@ def test_enqueue_rejects_shot_from_another_episode(session, tmp_path) -> None:
         assert "does not belong" in str(exc)
     else:
         raise AssertionError("Cross-episode shot references must be rejected")
+
+
+def test_enqueue_rejects_non_json_payload_without_persisting_job(session, tmp_path) -> None:
+    episode = _create_episode(session, tmp_path)
+
+    with pytest.raises(ValueError, match="payload must be JSON serializable"):
+        enqueue(
+            session,
+            job_type="generic_task",
+            payload={"invalid": {object()}},
+            episode_id=episode.id,
+        )
+
+    assert session.scalar(select(func.count()).select_from(Job)) == 0
 
 
 def test_two_workers_claim_each_job_exactly_once(engine, tmp_path) -> None:
