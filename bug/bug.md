@@ -6,9 +6,9 @@
 ## Tổng quan
 
 - Lỗi đang mở: **0**
-- Lỗi đã đóng: **44**
-- Test regression gần nhất trên `main`: **131/131 pass** (Bước 25, PR #27, merge commit `77af71b`)
-- Gate chính thức: **Bước 1–25 PASS**; Bước 26 chưa bắt đầu revalidation.
+- Lỗi đã đóng: **46**
+- Test regression gần nhất trên `main`: **137/137 pass** (Bước 30, PR #33, merge commit `4c98662`)
+- Gate chính thức: **Bước 1–30 PASS**.
 
 ## OBS-001 — Batch FFprobe 80 WAV từng thiếu file
 

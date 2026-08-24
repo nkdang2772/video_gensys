@@ -4,8 +4,8 @@
 **Thư mục dự án:** `D:\video_gensystem`  
 **Phiên bản ứng dụng:** `0.1.0`  
 **Giai đoạn hiện tại:** Audit/revalidation tuần tự theo DoD nghiêm ngặt
-**Gate chính thức:** **Bước 1–25 — PASS; Bước 26 — chưa bắt đầu revalidation**
-**Trạng thái:** Code lịch sử tồn tại đến Bước 30, nhưng chỉ Bước 1–25 đã đủ branch/PR/CI/merge để được đánh PASS chính thức. Bước 26 chưa được bắt đầu theo quy trình revalidation tuần tự.
+**Gate chính thức:** **Bước 1–30 — PASS**
+**Trạng thái:** Toàn bộ 30 bước đã hoàn tất revalidation tuần tự, mỗi bước có branch/PR riêng, test happy/error, GitHub CI 2/2 và merge vào `main`.
 
 **Nguyên tắc phạm vi:** hệ thống là nền tảng sản xuất hình/voice/motion tổng quát cho mọi series. “Xích Bích”, “Tam Quốc” và các tên nhân vật lịch sử chỉ là test fixture/ví dụ acceptance, không phải domain được hard-code.
 
@@ -63,7 +63,16 @@
 - Bằng chứng Bước 24: AppTest hiển thị variation grid, chọn version và queue regenerate với prompt sửa; manual batch bị chặn rõ ràng. Nút batch Google Flow queue đúng 80 job `overnight` theo `character_batch_key`; worker acceptance tạo đủ 80 Asset cho 80 shot tổng quát. Targeted **4/4 pass**, full CI **129/129 pass**.
 - **Bước 25 PASS:** branch `codex/step25-revalidation`, PR [#27](https://github.com/nkdang2772/video_gensys/pull/27), 2/2 GitHub checks xanh và merge commit `77af71b` trên `main`.
 - Bằng chứng Bước 25: Ken Burns render MP4 5 giây bằng `zoompan`; targeted xác nhận 30 FPS, 150 frame, 320×180, H.264 và không ghi đè output. Live artifact từ ảnh Google Flow đạt 5.0 giây, 30 FPS, 150 frame, 1376×768, H.264, SHA-256 `72B9E61280948895FAE90BEE521B0E91B9CC8BEC58CC8B8922CB98A266E38ED7`. BUG-044 harden FFprobe timeout retry. Targeted liên quan **8/8 pass**, full CI **131/131 pass**.
-- Các mô tả “đã hoàn thành” bên dưới là inventory implementation lịch sử, không phải dấu check DoD cho Bước 26–30.
+- **Bước 26 PASS:** branch `codex/step26-revalidation`, PR [#29](https://github.com/nkdang2772/video_gensys/pull/29), 2/2 GitHub checks xanh và merge commit `12512d1` trên `main`.
+- Bằng chứng Bước 26: Wan ComfyUI adapter trả MP4 thật; FFprobe xác nhận 12 frame/12 FPS. MP4 hỏng bị từ chối và không để output rác; focused **9/9 pass**, full CI **132/132 pass**.
+- **Bước 27 PASS:** branch `codex/step27-revalidation`, PR [#30](https://github.com/nkdang2772/video_gensys/pull/30), 2/2 GitHub checks xanh và merge commit `48f5679` trên `main`.
+- Bằng chứng Bước 27: extend/split/explicit loop chạy với FFmpeg thật; Wan fail đúng 3 lần → sprite fail → Ken Burns tạo 12 frame. BUG-045 chặn xóa output có sẵn; focused **10/10 pass**, full CI **133/133 pass**.
+- **Bước 28 PASS:** branch `codex/step28-revalidation`, PR [#31](https://github.com/nkdang2772/video_gensys/pull/31), 2/2 GitHub checks xanh và merge commit `d7cb3a5` trên `main`.
+- Bằng chứng Bước 28: acceptance queue 15 shot, priority GPU, worker/retry/chosen hoạt động; AppTest kiểm tra failed-job UI, hai variation, đổi chosen và lỗi thiếu ảnh nguồn. Focused **12/12 pass**, full CI **135/135 pass**.
+- **Bước 29 PASS:** branch `codex/step29-revalidation`, PR [#32](https://github.com/nkdang2772/video_gensys/pull/32), 2/2 GitHub checks xanh và merge commit `f6d4db7` trên `main`.
+- Bằng chứng Bước 29: shot/scene/full preview 3 shot bằng FFmpeg thật; full proxy 1280×720, 12 FPS, khoảng 3 giây; placeholder đỏ `s003` đúng cả cache. BUG-046 chặn trộn Shot/Episode; focused **4/4 pass**, full CI **136/136 pass**.
+- **Bước 30 PASS:** branch `codex/step30-revalidation`, PR [#33](https://github.com/nkdang2772/video_gensys/pull/33), 2/2 GitHub checks xanh và merge commit `4c98662` trên `main`.
+- Bằng chứng Bước 30: QA PASS 0 error/0 warning; package có manifest 16 cột × 3 shot, 6 media, `README_IMPORT.txt` và `project_manifest.json`; QA lỗi chặn export không để package dở. DaVinci Resolve 21.0.4 thật mở project acceptance, Media Pool chứa full preview + 3 audio + 3 image và playback timeline từ `01:00:00:00` đến `01:00:03:00`. Focused **5/5 pass**, full CI **137/137 pass**.
 
 ## Tech stack đã chốt
 
@@ -314,8 +323,8 @@
 - Export hard-link nếu cùng volume, fallback copy; tên media bắt đầu bằng `shot_id`; sinh `project_manifest.json`, `README_IMPORT.txt` và `shot_manifest.csv` UTF-8.
 - Yêu cầu Bước 30 ghi 16 cột trong khi doc mục 18 liệt kê 17 trường. Quyết định: CSV giữ đúng 16 trường dựng timeline, còn `notes` nằm trong `project_manifest.json`.
 - Rebuild export không xóa package cũ mà đổi tên thành `export_backup_<timestamp>` trước khi tạo package mới.
-- Acceptance artifact được giữ tại `live_test/step29_30_acceptance/.../generic-preview-episode` (ignored khỏi Git).
-- Không tìm thấy DaVinci Resolve trong registry, Start Menu hoặc các path cài phổ biến trên C:/D:; vì vậy chưa thể xác nhận thao tác import/timeline bằng ứng dụng Resolve thật trên máy này.
+- Acceptance artifact mới được giữ tại `live_test/step30_revalidation/.../generic-preview-episode` (ignored khỏi Git); SHA-256 `shot_manifest.csv`: `3562DF51216EC2BCA74A9B11AEB11EB991FF553B71BBEB5A7992200ACA734FBF`.
+- DaVinci Resolve 21.0.4 đã cài tại `D:\davinci\Resolve.exe`. Project `VideoGenSystem Step30 PASS 24fps` mở thành công, thấy đủ media package và playback timeline 3 giây đầu-cuối.
 
 ### Giới hạn live provider
 
@@ -332,7 +341,7 @@
 
 ```text
 python -m app --version: 0.1.0
-pytest: 92 passed
+pytest: 137 passed
 alembic check: No new upgrade operations detected
 PRAGMA journal_mode: wal
 PRAGMA busy_timeout: 5000
@@ -357,10 +366,9 @@ preview shot/scene/full với placeholder/cache, QA HTML/JSON, export 16 cột v
 - Status/bug log commit: `11e2866 docs: add project status and bug log`
 - Conda commit: `7291ec4 build: add conda environment management`
 - GitHub Actions workflow đã được cấu hình cho Python 3.11.
-- CI cloud sẽ chạy sau khi repository được push lên GitHub.
+- Repository GitHub đã đồng bộ; toàn bộ PR Bước 1–30 đạt 2/2 checks trước khi merge.
 
 ## Bước tiếp theo
 
-- Cài/mở DaVinci Resolve rồi import acceptance package hoặc corpus production để hoàn tất DoD GUI còn lại của Bước 30.
 - Khi có corpus production, chạy lại end-to-end ở kích thước tập thật; fixture hiện tại chứng minh workflow tổng quát, không hard-code Xích Bích.
 - Wan live acceptance vẫn cần ComfyUI đang chạy, workflow Wan 2.2 API JSON và model tương thích; Veo live là optional và có thể phát sinh phí.
