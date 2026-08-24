@@ -6,9 +6,9 @@
 ## Tổng quan
 
 - Lỗi đang mở: **0**
-- Lỗi đã đóng: **39**
-- Test regression gần nhất trên `main`: **115/115 pass** (Bước 15, PR #15, merge commit `641da86`)
-- Bước 16 trên branch `codex/step16-revalidation`: targeted liên quan **18/18 pass**, full regression **117/117 pass**.
+- Lỗi đã đóng: **40**
+- Test regression gần nhất trên `main`: **117/117 pass** (Bước 16, PR #17, merge commit `be388e8`)
+- Bước 17 trên branch `codex/step17-revalidation`: targeted **13/13 pass**, full regression **120/120 pass**.
 
 ## OBS-001 — Batch FFprobe 80 WAV từng thiếu file
 
@@ -407,6 +407,16 @@
 - **Nguyên nhân:** Một FFprobe subprocess có thể timeout thoáng qua; Voice import coi mọi `FFprobeError` là lỗi cuối của file và tiếp tục batch, nên một shot hợp lệ bị thiếu audio.
 - **Cách sửa:** Thêm `FFprobeTimeoutError` riêng; Voice import retry tối đa 2 lần chỉ cho timeout. File hỏng và lỗi metadata vẫn không retry, vẫn sinh warning rõ ràng.
 - **Regression test:** Mock timeout lần đầu và metadata hợp lệ lần hai phải tạo một chosen Asset, không warning; AppTest UI import 80/80 WAV. Targeted liên quan 18/18, full 117/117.
+
+## BUG-040 — Bulk assign không chọn shot báo thành công giả
+
+- **Trạng thái:** Đã đóng
+- **Mức độ:** Trung bình, UX/data integrity
+- **Phát hiện:** Revalidation Bước 17 bằng Streamlit AppTest.
+- **Triệu chứng:** Nhấn `Apply bulk characters` khi chưa chọn shot hiển thị `Updated 0 shots`, khiến thao tác không hợp lệ trông như đã thành công.
+- **Nguyên nhân:** UI gọi `bulk_update_shots()` với danh sách rỗng; service chủ ý trả danh sách rỗng cho no-op nhưng màn hình không validate ý định người dùng.
+- **Cách sửa:** Shot Manager từ chối danh sách chọn rỗng trước khi mở transaction và hiển thị lỗi `Select at least one shot for bulk assignment.`
+- **Regression test:** AppTest tạo Episode có Shot, mở Shot Manager, nhấn bulk apply khi không chọn shot và xác nhận lỗi; targeted 13/13, full 120/120.
 
 ## Quy ước cập nhật
 

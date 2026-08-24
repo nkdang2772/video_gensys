@@ -11,6 +11,34 @@ from app.services.errors import DomainError
 from app.services.shot import bulk_update_shots, update_shot
 
 
+INLINE_EDIT_FIELDS = ("speaker", "visual_description", "motion_intent", "status")
+
+
+def persist_inline_edits(
+    session: Session,
+    originals: dict[int, dict[str, object]],
+    edited_records: list[dict[str, object]],
+) -> int:
+    """Persist only editable cells and reject rows outside the rendered table."""
+    edited_ids = [int(row["id"]) for row in edited_records]
+    unknown_ids = sorted(set(edited_ids) - set(originals))
+    if unknown_ids:
+        raise ValueError(f"Edited rows are not in the current view: {unknown_ids}")
+
+    changed = 0
+    for row, shot_id in zip(edited_records, edited_ids, strict=True):
+        original = originals[shot_id]
+        changes = {
+            field: row[field]
+            for field in INLINE_EDIT_FIELDS
+            if row[field] != original[field]
+        }
+        if changes:
+            update_shot(session, shot_id, **changes)
+            changed += 1
+    return changed
+
+
 def render(session_factory: sessionmaker[Session]) -> None:
     st.header("Shot Manager")
     episode_id = st.session_state.get("selected_episode_id")
@@ -63,17 +91,7 @@ def render(session_factory: sessionmaker[Session]) -> None:
         try:
             originals = {row["id"]: row for row in rows}
             with session_factory() as session:
-                changed = 0
-                for row in edited.to_dict("records"):
-                    original = originals[row["id"]]
-                    changes = {
-                        field: row[field]
-                        for field in ("speaker", "visual_description", "motion_intent", "status")
-                        if row[field] != original[field]
-                    }
-                    if changes:
-                        update_shot(session, int(row["id"]), **changes)
-                        changed += 1
+                changed = persist_inline_edits(session, originals, edited.to_dict("records"))
                 session.commit()
             st.success(f"Updated {changed} shots")
         except (DomainError, ValueError) as exc:
@@ -107,6 +125,8 @@ def render(session_factory: sessionmaker[Session]) -> None:
     primary = st.selectbox("Primary character", primary_options, key="shot_bulk_primary")
     if st.button("Apply bulk characters", key="shot_bulk_apply"):
         try:
+            if not selected_shot_labels:
+                raise ValueError("Select at least one shot for bulk assignment.")
             with session_factory() as session:
                 updated = bulk_update_shots(
                     session,
