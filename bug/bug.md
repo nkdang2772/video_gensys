@@ -504,6 +504,33 @@
 - **Cách sửa:** Chuẩn hóa `SyntaxError` thành issue `unreadable_metadata` giống các media hỏng khác; QA tiếp tục kiểm tra các shot còn lại.
 - **Regression test:** Error path PNG hỏng được bao phủ; visual-first happy path với PNG hợp lệ PASS; full **145/145 pass**.
 
+## OPS-049 — Live demo dùng sai working directory cho SQLite tương đối
+
+- **Trạng thái:** Đã xử lý, không phải lỗi application.
+- **Mức độ:** Thấp, môi trường chạy lệnh.
+- **Triệu chứng:** Phiên shell mới mở `sqlite:///data/app.db` ngoài root dự án và báo `unable to open database file`.
+- **Nguyên nhân:** `DEFAULT_DATABASE_URL` là đường dẫn tương đối theo working directory của process.
+- **Cách xử lý:** Live command luôn đặt `VIDEO_GENSYSTEM_DATABASE_URL=sqlite:///D:/video_gensystem/data/app.db`; DB production không hỏng và vẫn ở WAL.
+- **Xác minh:** Query lại thấy đủ 7 Image Asset; chọn asset và render thành công.
+
+## OPS-050 — FFmpeg Conda không nằm trong PATH của phiên shell mới
+
+- **Trạng thái:** Đã xử lý, không phải lỗi renderer.
+- **Mức độ:** Thấp, cấu hình runtime.
+- **Triệu chứng:** Lượt render đầu báo `ffmpeg was not found`; output lỗi được cleanup tự động.
+- **Nguyên nhân:** FFmpeg cài trong môi trường Conda `video-gensystem`, còn process chạy bằng `.venv` không kế thừa PATH đó.
+- **Cách xử lý:** Đặt `VIDEO_GENSYSTEM_FFMPEG_PATH` và `VIDEO_GENSYSTEM_FFPROBE_PATH` tới executable trong Conda.
+- **Xác minh:** Video thật 23.521354 giây, 1280×720, 30 FPS, H.264/AAC; full regression **147/147 pass**.
+
+## OPS-051 — PowerShell cp1252 không in được tên “Nọ” sau render
+
+- **Trạng thái:** Đã xử lý, artifact không bị ảnh hưởng.
+- **Mức độ:** Thấp, console encoding.
+- **Triệu chứng:** Renderer hoàn tất nhưng lệnh diagnostic kết thúc bằng `UnicodeEncodeError` khi in metadata tiếng Việt.
+- **Nguyên nhân:** Python stdout của phiên PowerShell dùng cp1252.
+- **Cách xử lý:** Đặt `PYTHONIOENCODING=utf-8` cho lệnh diagnostic; phụ đề được Pillow ghi trực tiếp bằng font Unicode nên không qua console encoding.
+- **Xác minh:** Ba frame QA hiển thị đúng “Này”, “Nọ”, “Xích Bích”, “Trường Giang” và các dấu tiếng Việt.
+
 ## Quy ước cập nhật
 
 Mỗi lỗi mới cần ghi:

@@ -341,11 +341,22 @@
 - Extension nguồn được quản lý tại `integrations/h2dev_flow_extension` và sẽ được đồng bộ với bản người dùng đang dùng.
 - ComfyUI live acceptance vẫn cần server local đang chạy với model/workflow tương thích.
 
+### Live demo Xích Bích — visual-first có phụ đề (2026-08-25)
+
+- Dùng 7 shot mở đầu `s001`–`s007`; đây là dữ liệu production mẫu, renderer không hard-code nội dung Xích Bích.
+- Google Flow live tạo đủ 7/7 image Asset 1376×768; toàn bộ job cuối cùng ở trạng thái `done`, không có error và mỗi Shot có đúng một chosen image.
+- Reference live đã có `nay`, `no`, `bg_studio_modern` và bản đồ; Episode pin version trước khi sinh ảnh.
+- Thêm `app/media/subtitled_slideshow.py`: dựng slideshow H.264 từ chosen image, burn-in speaker + phụ đề Unicode ở dải dưới, kèm AAC stereo im lặng để thay voice về sau.
+- Artifact: `library/series/tam-quoc/episodes/ep_01_xich-bich/proxies/xich_bich_intro_subbed.mp4` (ignored khỏi Git).
+- Probe thật: 23.521354 giây, 1280×720, 30 FPS, 705 frame, H.264; audio AAC 48 kHz stereo im lặng.
+- Visual QA ba mốc đầu/giữa/cuối đạt: tiếng Việt hiển thị đúng, tự xuống dòng, không che khuôn mặt, không có watermark/chữ rác.
+- Unit/error test renderer 2/2 pass; full regression **147/147 pass**.
+
 ## Kết quả kiểm thử gần nhất
 
 ```text
 python -m app --version: 0.1.0
-pytest: 137 passed
+pytest: 147 passed
 alembic check: No new upgrade operations detected
 PRAGMA journal_mode: wal
 PRAGMA busy_timeout: 5000
@@ -363,6 +374,7 @@ hai worker claim đồng thời, stale recovery, ba image provider adapters, ret
 image Asset versioning/cost, gallery UI và batch 80 shot, Ken Burns MP4 thật,
 video metadata, Wan/Veo adapters, motion fill/fallback, motion worker, Motion Queue UI,
 preview shot/scene/full với placeholder/cache, QA HTML/JSON, export 16 cột và rebuild backup.
+Renderer slideshow phụ đề được test với Unicode tiếng Việt, duration/FPS/resolution thật và lỗi ảnh nguồn bị thiếu.
 
 ## Git
 
