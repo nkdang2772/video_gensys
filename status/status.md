@@ -351,10 +351,10 @@
 - Probe thật: 23.521354 giây, 1280×720, 30 FPS, 705 frame, H.264; audio AAC 48 kHz stereo im lặng.
 - Visual QA ba mốc đầu/giữa/cuối đạt: tiếng Việt hiển thị đúng, tự xuống dòng, không che khuôn mặt, không có watermark/chữ rác.
 - Unit/error test renderer 2/2 pass; full regression **147/147 pass**.
-- Bản Sprite/Parallax local: `proxies/xich_bich_intro_sprite_subbed.mp4`, giữ nguyên 7 shot/23.521354 giây nhưng vùng nhân vật được feather và chuyển động nhún-thở/lắc nhẹ độc lập với nền.
-- `app/motion/sprite_parallax.py` cung cấp renderer local thật; `SubtitleSlide.subject_box` bật motion theo từng shot, còn phụ đề được composited trước và giữ ổn định ở dải dưới.
-- Không gọi provider cloud, không dùng credit; đây là chuyển động 2.5D nhẹ, không sinh động tác tay hoặc khẩu hình mới.
-- Targeted Sprite/Subtitle 4/4 pass; visual QA hai frame cùng shot không thấy viền cắt hoặc chữ rác.
+- Bản thử Sprite/Parallax local: `proxies/xich_bich_intro_sprite_subbed.mp4`, 7 shot/23.521354 giây; technical tests pass nhưng **không đạt user acceptance**.
+- Lý do reject: ảnh nguồn là một lớp đã ghép phẳng; mask hộp feather kéo theo bàn/bản đồ/laptop, còn nhân vật dịch chuyển như một mảng cứng nên chuyển động gượng.
+- `app/motion/sprite_parallax.py` và `SubtitleSlide.subject_box` hiện chỉ là implementation thử nghiệm trên feature branch, **chưa được merge/không được xem là DoD hoàn tất**.
+- Muốn local đạt chất lượng phải sinh asset phân lớp thật (background sạch + character RGBA, tốt hơn nữa tách head/torso/arms) rồi rig; nếu dùng chính ảnh phẳng hiện tại thì cần image-to-video cho chuyển động tự nhiên.
 
 ## Kết quả kiểm thử gần nhất
 
@@ -379,7 +379,7 @@ image Asset versioning/cost, gallery UI và batch 80 shot, Ken Burns MP4 thật,
 video metadata, Wan/Veo adapters, motion fill/fallback, motion worker, Motion Queue UI,
 preview shot/scene/full với placeholder/cache, QA HTML/JSON, export 16 cột và rebuild backup.
 Renderer slideshow phụ đề được test với Unicode tiếng Việt, duration/FPS/resolution thật và lỗi ảnh nguồn bị thiếu.
-Renderer Sprite/Parallax local được test với MP4 thật và error case hộp chủ thể nằm ngoài ảnh; full regression 149/149 pass.
+Renderer Sprite/Parallax thử nghiệm có technical tests pass, nhưng live visual acceptance fail; full regression 149/149 không thay thế user acceptance.
 
 ## Git
 

@@ -533,13 +533,24 @@
 
 ## BUG-052 — Fallback khai báo sprite nhưng không có renderer local thật
 
-- **Trạng thái:** Đã đóng.
+- **Trạng thái:** Mở lại; implementation hộp feather không đạt visual acceptance.
 - **Mức độ:** Trung bình, thiếu chức năng motion fallback.
 - **Phát hiện:** Khi chuyển demo Xích Bích từ slideshow tĩnh sang Sprite/Parallax local.
 - **Triệu chứng:** `render_with_fallback()` nhận callback `sprite_renderer`, nhưng project không cung cấp implementation; nếu caller không tự inject thì luôn ghi `sprite_local: unavailable` rồi về Ken Burns.
 - **Nguyên nhân:** Bước 27 mới hoàn thành contract/fallback chain, chưa có engine tách vùng chủ thể và render chuyển động 2.5D.
-- **Cách sửa:** Thêm `app/motion/sprite_parallax.py`: validate ảnh/hộp chủ thể/motion, tạo sprite alpha feather, animate sway + breathing bằng FFmpeg, output H.264/AAC atomic; tích hợp tùy chọn vào renderer slideshow phụ đề.
-- **Regression test:** Clip sprite 1 giây được FFprobe xác nhận H.264 đúng resolution/duration; hộp nằm ngoài ảnh phải raise và không tạo output; targeted 4/4, full 149/149 pass.
+- **Cách thử đã bị reject:** `app/motion/sprite_parallax.py` dùng hộp feather + FFmpeg sway/breathing. Technical test pass nhưng kéo theo pixel nền và dịch nhân vật như một khối cứng.
+- **Điều kiện đóng lỗi:** Renderer phải nhận asset phân lớp thật hoặc mask nhân vật sạch, không làm chuyển động pixel nền; cần visual acceptance ngoài unit test.
+- **Test hiện có:** Clip/validation kỹ thuật 4/4, full 149/149; các test này không chứng minh chất lượng chuyển động.
+
+## BUG-053 — Sprite hộp chữ nhật kéo theo nền và tạo chuyển động gượng
+
+- **Trạng thái:** Đang mở, chặn merge feature Sprite.
+- **Mức độ:** Cao, chất lượng hình ảnh.
+- **Phát hiện:** User review live artifact `xich_bich_intro_sprite_subbed.mp4`.
+- **Triệu chứng:** Bàn, laptop, bản đồ và vùng xung quanh nhân vật cùng di chuyển; toàn thân nhân vật dịch như một tấm bìa.
+- **Nguyên nhân:** Source image đã composited một lớp; renderer lấy crop chữ nhật feather thay vì alpha matte theo silhouette và không có rig xương/layer bộ phận.
+- **Thử nghiệm chẩn đoán:** OpenCV GrabCut bằng box và polygon vẫn chọn nhầm vật thể nền do màu/đường viền cartoon liên thông; không đủ sạch để render.
+- **Hướng sửa:** (1) sinh background sạch + character RGBA/head/torso/arms rồi rig local, hoặc (2) dùng image-to-video. Không tiếp tục tăng biên độ/feather trên ảnh phẳng.
 
 ## Quy ước cập nhật
 
