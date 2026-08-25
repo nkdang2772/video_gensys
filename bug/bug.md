@@ -6,8 +6,8 @@
 ## Tổng quan
 
 - Lỗi đang mở: **0**
-- Lỗi đã đóng: **46**
-- Test regression gần nhất trên `main`: **138/138 pass** (Auto timeline OTIO/OTIOZ, PR #35, merge commit `d09cc1c`)
+- Lỗi đã đóng: **48**
+- Test regression gần nhất trên branch Visual-first: **145/145 pass**; baseline `main` **138/138 pass**.
 - Gate chính thức: **Bước 1–30 PASS**.
 
 ## OBS-002 — Thumbnail ảnh OTIOZ trong Media Pool chậm cập nhật
@@ -483,6 +483,26 @@
 - **Nguyên nhân:** Thiếu invariant kiểm tra `shot.episode_id == episode.id` tại boundary của media service.
 - **Cách sửa:** Từ chối trước mọi thao tác filesystem khi Shot không thuộc Episode preview.
 - **Regression test:** Shot ngoại lai phải raise `ValueError` và không tạo proxy. Targeted 4/4, full 136/136.
+
+## BUG-048 — Visual setup mở transaction trước Episode service
+
+- **Trạng thái:** Đã đóng
+- **Mức độ:** Cao, bootstrap workflow
+- **Phát hiện:** Test idempotent cho CLI visual-first mới.
+- **Triệu chứng:** Lần setup đầu dừng ở `create_episode requires a Session without an active transaction` dù Series hợp lệ.
+- **Nguyên nhân:** Query tìm Episode kích hoạt SQLAlchemy autobegin; `create_episode()` chủ ý sở hữu transaction riêng để rollback đồng bộ database và folder.
+- **Cách sửa:** Rollback transaction chỉ-đọc sau khi xác nhận Episode chưa tồn tại, rồi mới gọi `create_episode()`; lần chạy lại dùng record hiện hữu.
+- **Regression test:** Chạy setup hai lần giữ nguyên một Series, một Episode, hai Reference và một Shot; `tests/test_visual_first.py`, full **145/145 pass**.
+
+## BUG-047 — PNG hỏng CRC làm Asset Checker crash
+
+- **Trạng thái:** Đã đóng
+- **Mức độ:** Cao, QA reliability
+- **Phát hiện:** Test QA visual-first với chosen image lỗi checksum nội bộ PNG.
+- **Triệu chứng:** Pillow `verify()` ném `SyntaxError` và dừng toàn bộ report thay vì ghi issue cho asset hỏng.
+- **Nguyên nhân:** Nhánh metadata chỉ bắt `FFprobeError`, `OSError` và `ValueError`; Pillow dùng `SyntaxError` cho một số PNG CRC hỏng.
+- **Cách sửa:** Chuẩn hóa `SyntaxError` thành issue `unreadable_metadata` giống các media hỏng khác; QA tiếp tục kiểm tra các shot còn lại.
+- **Regression test:** Error path PNG hỏng được bao phủ; visual-first happy path với PNG hợp lệ PASS; full **145/145 pass**.
 
 ## Quy ước cập nhật
 

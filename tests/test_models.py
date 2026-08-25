@@ -39,6 +39,7 @@ EXPECTED_CHECK_CONSTRAINTS = {
     "ck_reference_scope_owner",
     "ck_reference_version_positive",
     "ck_shot_audio_duration",
+    "ck_shot_planned_duration",
     "ck_shot_padding",
     "ck_shot_motion_intent",
     "ck_shot_motion_provider",

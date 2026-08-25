@@ -25,6 +25,10 @@ class Shot(Base):
             name="ck_shot_audio_duration",
         ),
         CheckConstraint(
+            "planned_duration_sec IS NULL OR planned_duration_sec > 0",
+            name="ck_shot_planned_duration",
+        ),
+        CheckConstraint(
             "head_padding_sec >= 0 AND tail_padding_sec >= 0",
             name="ck_shot_padding",
         ),
@@ -61,6 +65,7 @@ class Shot(Base):
     audio_start_sec: Mapped[float | None]
     audio_end_sec: Mapped[float | None]
     audio_duration_sec: Mapped[float | None]
+    planned_duration_sec: Mapped[float | None]
     head_padding_sec: Mapped[float] = mapped_column(default=0.0, nullable=False)
     tail_padding_sec: Mapped[float] = mapped_column(default=0.0, nullable=False)
     motion_intent: Mapped[str] = mapped_column(String(32), default="static", nullable=False)

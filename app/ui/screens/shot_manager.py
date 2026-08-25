@@ -9,6 +9,7 @@ from app.models import Asset, Episode, Reference, Scene, Shot
 from app.paths import resolve
 from app.services.errors import DomainError
 from app.services.shot import bulk_update_shots, update_shot
+from app.services.reference_mapping import auto_map_episode_references
 
 
 INLINE_EDIT_FIELDS = ("speaker", "visual_description", "motion_intent", "status")
@@ -74,6 +75,7 @@ def render(session_factory: sessionmaker[Session]) -> None:
                 "motion_intent": shot.motion_intent,
                 "status": shot.status,
                 "duration": shot.audio_duration_sec,
+                "planned_duration": shot.planned_duration_sec,
             }
             for shot in shots
         ]
@@ -84,7 +86,7 @@ def render(session_factory: sessionmaker[Session]) -> None:
         pd.DataFrame(rows),
         use_container_width=True,
         hide_index=True,
-        disabled=["id", "shot_id", "order", "characters", "duration"],
+        disabled=["id", "shot_id", "order", "characters", "duration", "planned_duration"],
         key="shot_editor",
     )
     if st.button("Save inline edits", key="shot_save_edits"):
@@ -136,6 +138,39 @@ def render(session_factory: sessionmaker[Session]) -> None:
                 )
                 session.commit()
             st.success(f"Updated {len(updated)} shots")
+        except (DomainError, ValueError) as exc:
+            st.error(str(exc))
+
+    st.subheader("Visual-first setup")
+    planned_duration = st.number_input(
+        "Planned seconds per selected shot", min_value=0.1, value=4.0, step=0.5,
+        key="shot_bulk_planned_duration",
+    )
+    if st.button("Apply planned duration", key="shot_bulk_planned_apply"):
+        try:
+            if not selected_shot_labels:
+                raise ValueError("Select at least one shot above.")
+            with session_factory() as session:
+                updated = bulk_update_shots(
+                    session,
+                    [shot_options[label] for label in selected_shot_labels],
+                    planned_duration_sec=float(planned_duration),
+                )
+                session.commit()
+            st.success(f"Updated provisional duration for {len(updated)} shots")
+        except (DomainError, ValueError) as exc:
+            st.error(str(exc))
+    if st.button("Auto-map character and location references", key="shot_auto_map"):
+        try:
+            with session_factory() as session:
+                report = auto_map_episode_references(session, episode_id)
+                session.commit()
+            st.success(
+                f"Mapped characters in {report.character_mapped}/{report.shot_count} shots; "
+                f"locations in {report.location_mapped}/{report.shot_count}."
+            )
+            if report.unmapped_shot_ids:
+                st.warning("Review unmapped shots: " + ", ".join(report.unmapped_shot_ids))
         except (DomainError, ValueError) as exc:
             st.error(str(exc))
 

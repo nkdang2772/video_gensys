@@ -8,13 +8,9 @@ from sqlalchemy.orm import Session
 
 from app.models import Asset, Job, Shot
 from app.queue.job import enqueue
+from app.services.timing import effective_shot_duration
 
 MOTION_PROVIDERS = frozenset({"wan_local", "veo_cloud"})
-
-
-def effective_shot_duration(shot: Shot) -> float:
-    audio = float(shot.audio_duration_sec or 0.0)
-    return audio + float(shot.head_padding_sec or 0.0) + float(shot.tail_padding_sec or 0.0)
 
 
 def enqueue_motion_job(

@@ -16,10 +16,13 @@ def render(session_factory: sessionmaker[Session], library_root: Path) -> None:
     if episode_id is None:
         st.info("Open an Episode first.")
         return
+    visual_first = st.checkbox(
+        "Visual-first (voice will be added later)", value=True, key="qa_visual_first"
+    )
     if st.button("Run asset checker", type="primary"):
         try:
             with session_factory() as session:
-                report = run_asset_checks(session, episode_id)
+                report = run_asset_checks(session, episode_id, require_audio=not visual_first)
             st.session_state["qa_report"] = report
         except (ValueError, OSError, RuntimeError) as exc:
             st.error(str(exc))
@@ -56,6 +59,7 @@ def render(session_factory: sessionmaker[Session], library_root: Path) -> None:
                     allow_qa_errors=allow_errors,
                     force=archive_previous,
                     transition_duration_sec=transition_duration,
+                    visual_first=visual_first,
                 )
             st.success(f"Exported {result.shot_count} shots / {result.media_file_count} files")
             st.code(str(result.export_path))

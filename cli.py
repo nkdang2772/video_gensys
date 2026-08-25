@@ -1,11 +1,15 @@
 from __future__ import annotations
 
 import argparse
+from pathlib import Path
 
 from app.db import SessionLocal
 from app.services.errors import DomainError
 from app.services.reference import add_version, create_reference, list_versions
 from app.services.series import create_series
+from app.services.visual_setup import prepare_visual_episode
+from app.providers.image import GoogleFlowImageProvider, ProviderError
+from app.services.visual_reference import generate_reference_version
 
 
 def build_parser() -> argparse.ArgumentParser:
@@ -44,6 +48,26 @@ def build_parser() -> argparse.ArgumentParser:
 
     reference_list = reference_commands.add_parser("list-versions", help="List reference versions")
     reference_list.add_argument("--reference-id", type=int, required=True)
+    reference_flow = reference_commands.add_parser(
+        "generate-flow", help="Generate and store an immutable Google Flow version"
+    )
+    reference_flow.add_argument("--reference-id", type=int, required=True)
+    reference_flow.add_argument("--library-root", default="library")
+    reference_flow.add_argument("--downloads-root")
+    reference_flow.add_argument("--bridge-port", type=int, default=8765)
+    reference_flow.add_argument("--timeout", type=float, default=900.0)
+
+    visual_parser = resources.add_parser("visual", help="Prepare a visual-first episode")
+    visual_commands = visual_parser.add_subparsers(dest="action", required=True)
+    visual_setup = visual_commands.add_parser("setup", help="Import script and prompt catalogs")
+    visual_setup.add_argument("--series-name", required=True)
+    visual_setup.add_argument("--episode-title", required=True)
+    visual_setup.add_argument("--episode-number", type=int, default=1)
+    visual_setup.add_argument("--library-root", default="library")
+    visual_setup.add_argument("--script", required=True)
+    visual_setup.add_argument("--character-prompts", required=True)
+    visual_setup.add_argument("--background-prompts", required=True)
+    visual_setup.add_argument("--planned-duration", type=float, default=4.0)
     return parser
 
 
@@ -96,7 +120,42 @@ def main() -> int:
             for version_id, number, file_path in rows:
                 print(f"id={version_id} version={number} file={file_path}")
             return 0
-    except (DomainError, ValueError) as exc:
+        if args.resource == "reference" and args.action == "generate-flow":
+            config = {"bridge_port": args.bridge_port, "timeout_sec": args.timeout}
+            if args.downloads_root:
+                config["downloads_root"] = args.downloads_root
+            with SessionLocal() as session:
+                version = generate_reference_version(
+                    session,
+                    reference_id=args.reference_id,
+                    provider=GoogleFlowImageProvider(),
+                    library_root=args.library_root,
+                    config=config,
+                )
+                version_id, number, file_path = version.id, version.version, version.file_path
+            print(f"Created reference_version id={version_id} version={number} file={file_path}")
+            return 0
+        if args.resource == "visual" and args.action == "setup":
+            result = prepare_visual_episode(
+                SessionLocal,
+                series_name=args.series_name,
+                episode_title=args.episode_title,
+                episode_number=args.episode_number,
+                library_root=args.library_root,
+                script_path=args.script,
+                character_prompts_path=args.character_prompts,
+                background_prompts_path=args.background_prompts,
+                planned_duration_sec=args.planned_duration,
+            )
+            print(
+                f"Prepared series_id={result.series_id} episode_id={result.episode_id} "
+                f"references={result.reference_count} shots={result.shot_count} "
+                f"character_mapped={result.character_mapped} "
+                f"location_mapped={result.location_mapped} "
+                f"root={result.episode_root}"
+            )
+            return 0
+    except (DomainError, ProviderError, ValueError) as exc:
         parser.error(str(exc))
     return 1
 

@@ -17,6 +17,7 @@ from app.media.ffprobe import FFprobeError, probe_audio, probe_video
 from app.media.ffmpeg import run_ffmpeg
 from app.models import Asset, Episode, Job, Shot
 from app.paths import resolve
+from app.services.timing import effective_shot_duration
 
 
 @dataclass(frozen=True, slots=True)
@@ -56,8 +57,10 @@ def _chosen(shot: Shot, kind: str) -> Asset | None:
     return next((item for item in shot.assets if item.asset_type == kind and item.is_chosen), None)
 
 
-def _effective_duration(shot: Shot) -> float:
-    return float(shot.audio_duration_sec or 0) + float(shot.head_padding_sec or 0) + float(shot.tail_padding_sec or 0)
+def _effective_duration(shot: Shot, *, require_audio: bool) -> float:
+    if require_audio:
+        return float(shot.audio_duration_sec or 0) + float(shot.head_padding_sec or 0) + float(shot.tail_padding_sec or 0)
+    return effective_shot_duration(shot, fallback=0.0)
 
 
 def _resolution(value: str) -> tuple[int, int] | None:
@@ -151,6 +154,7 @@ def run_asset_checks(
     ffprobe_path: str | Path | None = None,
     stale_timeout: timedelta = timedelta(minutes=30),
     write_report: bool = True,
+    require_audio: bool = True,
 ) -> QaReport:
     episode = session.get(Episode, episode_id)
     if episode is None:
@@ -170,10 +174,14 @@ def run_asset_checks(
             issues.append(QaIssue("error", "duplicate_shot_id", "Shot ID is duplicated ignoring case", shot.shot_id))
         lowered.add(normalized)
         audio, image, motion = _chosen(shot, "audio"), _chosen(shot, "image"), _chosen(shot, "video")
-        effective = _effective_duration(shot)
+        effective = _effective_duration(shot, require_audio=require_audio)
         total_audio += effective
-        if audio is None or effective <= 0:
+        if require_audio and (audio is None or effective <= 0):
             issues.append(QaIssue("error", "audio_duration", "Chosen audio and duration > 0 are required", shot.shot_id, audio.id if audio else None))
+        elif not require_audio and effective <= 0:
+            issues.append(QaIssue("error", "planned_duration", "Visual-first mode requires planned_duration_sec > 0", shot.shot_id))
+        elif not require_audio and audio is None:
+            issues.append(QaIssue("warning", "audio_deferred", "Voice is intentionally deferred; planned duration is used", shot.shot_id))
         visual = motion or image
         if visual is None:
             placeholders.append(shot.shot_id)
@@ -218,7 +226,7 @@ def run_asset_checks(
                         source.verify()
                     if _is_abnormal_still(path):
                         issues.append(QaIssue("warning", "abnormal_frame", "Chosen image is near-solid black or white", shot.shot_id, asset.id))
-            except (FFprobeError, OSError, ValueError) as exc:
+            except (FFprobeError, OSError, ValueError, SyntaxError) as exc:
                 issues.append(QaIssue("error", "unreadable_metadata", str(exc), shot.shot_id, asset.id))
 
         if motion is not None:

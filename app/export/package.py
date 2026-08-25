@@ -17,6 +17,7 @@ from app.models import Asset, Episode, Shot
 from app.paths import resolve
 from app.qa.checker import QaReport, run_asset_checks
 from app.export.otio_timeline import OtioExportResult, TimelineEntry, export_otio_timeline
+from app.services.timing import effective_shot_duration
 
 MANIFEST_COLUMNS = (
     "series_slug", "episode_slug", "scene_id", "shot_id", "order_index", "speaker",
@@ -70,11 +71,15 @@ def export_episode_package(
     allow_qa_errors: bool = False,
     force: bool = False,
     transition_duration_sec: float = 0.25,
+    visual_first: bool = False,
 ) -> ExportResult:
     episode = session.get(Episode, episode_id)
     if episode is None:
         raise ValueError(f"Episode not found: {episode_id}")
-    qa_report = run_asset_checks(session, episode_id, ffmpeg_path=ffmpeg_path, ffprobe_path=ffprobe_path)
+    qa_report = run_asset_checks(
+        session, episode_id, ffmpeg_path=ffmpeg_path, ffprobe_path=ffprobe_path,
+        require_audio=not visual_first,
+    )
     if not qa_report.passed and not allow_qa_errors:
         raise ValueError(f"Export blocked by {qa_report.error_count} QA error(s); review {qa_report.html_path}")
     shots = list(session.scalars(select(Shot).where(Shot.episode_id == episode_id).order_by(Shot.order_index, Shot.id)))
@@ -107,11 +112,7 @@ def export_episode_package(
             count += sum(bool(item) for item in (audio, image, motion, subtitle))
             if shot.notes:
                 notes[shot.shot_id] = shot.notes
-            duration = (
-                float(shot.audio_duration_sec or 0)
-                + float(shot.head_padding_sec or 0)
-                + float(shot.tail_padding_sec or 0)
-            )
+            duration = effective_shot_duration(shot, fallback=0.0)
             rows.append({
                 "series_slug": episode.series.slug,
                 "episode_slug": episode.slug,

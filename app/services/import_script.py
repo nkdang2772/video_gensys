@@ -23,6 +23,7 @@ def import_parsed_script(
     parsed_shots: list[ParsedShot],
     source_name: str | None = None,
     source_bytes: bytes | None = None,
+    planned_duration_sec: float = 4.0,
 ) -> list[Shot]:
     if session.in_transaction():
         raise ScriptImportError("import_parsed_script requires a Session without an active transaction")
@@ -33,6 +34,8 @@ def import_parsed_script(
         raise ScriptImportError("Script contains duplicate shot_id values")
     if (source_name is None) != (source_bytes is None):
         raise ValueError("source_name and source_bytes must be provided together")
+    if planned_duration_sec <= 0:
+        raise ValueError("planned_duration_sec must be positive")
 
     stored_script: Path | None = None
     try:
@@ -87,6 +90,7 @@ def import_parsed_script(
                     motion_fill_policy="extend",
                     characters_json=[],
                     character_batch_key=compute_batch_key([]),
+                    planned_duration_sec=planned_duration_sec,
                     status="draft",
                 )
                 session.add(shot)

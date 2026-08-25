@@ -4,7 +4,7 @@ from datetime import datetime
 from typing import TYPE_CHECKING, Any
 
 from sqlalchemy import Boolean, CheckConstraint, DateTime, ForeignKey, JSON, String, Text, UniqueConstraint
-from sqlalchemy.ext.mutable import MutableDict
+from sqlalchemy.ext.mutable import MutableDict, MutableList
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.db import Base
@@ -41,6 +41,8 @@ class Reference(TimestampMixin, Base):
     owning_series_id: Mapped[int | None] = mapped_column(ForeignKey("series.id", ondelete="CASCADE"))
     current_version: Mapped[int] = mapped_column(default=0, nullable=False)
     is_active: Mapped[bool] = mapped_column(Boolean, default=True, nullable=False)
+    generation_prompt: Mapped[str | None] = mapped_column(Text)
+    aliases_json: Mapped[list[str] | None] = mapped_column(MutableList.as_mutable(JSON))
 
     owning_series: Mapped["Series | None"] = relationship(
         back_populates="references", foreign_keys=[owning_series_id]
