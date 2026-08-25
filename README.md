@@ -60,6 +60,20 @@ streamlit run streamlit_app.py
 
 The MVP screens are Series, Episodes, Import, Shot Manager, References, Image Gallery, Motion Queue, Preview, and QA & Export. Local path inputs are available for desktop workflows; upload controls remain available for scripts, multiple WAV files, and reference versions.
 
+### Visual-first setup (voice later)
+
+Prepare a complete Episode, prompt library and provisional 4-second shot timeline in one idempotent command:
+
+```powershell
+python cli.py visual setup --series-name "Tam Quốc" --episode-title "Xích Bích" `
+  --library-root "D:\video_gensystem\library" `
+  --script "D:\video_gensystem\scripts\xich_bich\xich_bich_script.txt" `
+  --character-prompts "D:\video_gensystem\scripts\xich_bich\character_prompts.txt" `
+  --background-prompts "D:\video_gensystem\scripts\xich_bich\background_prompts.txt"
+```
+
+Open **References**, select each imported reference and click **Generate new version with Google Flow**. Then click **Sync references to open Episode**, open **Shot Manager**, and run **Auto-map character and location references**. Visual-first Preview/QA/Export use `planned_duration_sec`; importing voice later automatically replaces that provisional timing with measured voice duration plus padding.
+
 ## SQLite job queue
 
 Queue operations live under `app.queue`. Jobs are ordered by `high`, `normal`, `image`, `gpu`, `overnight`, then `export`, with FIFO ordering inside each priority. Worker claims use a dedicated SQLite connection and `BEGIN IMMEDIATE`; job processing starts only after the claim transaction commits. Stale jobs default to a 30-minute timeout and are requeued while attempts remain.

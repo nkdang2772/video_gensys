@@ -13,6 +13,7 @@ from app.media.ffmpeg import run_ffmpeg
 from app.media.ffprobe import probe_audio, probe_video
 from app.models import Asset, Episode, Scene, Shot
 from app.paths import resolve
+from app.services.timing import effective_shot_duration
 
 
 @dataclass(frozen=True, slots=True)
@@ -31,11 +32,7 @@ def _chosen(shot: Shot, asset_type: str) -> Asset | None:
 
 
 def _duration(shot: Shot, visual: Asset | None, audio: Asset | None) -> float:
-    duration = (
-        float(shot.audio_duration_sec or 0)
-        + float(shot.head_padding_sec or 0)
-        + float(shot.tail_padding_sec or 0)
-    )
+    duration = effective_shot_duration(shot, fallback=0.0)
     if duration <= 0 and audio is not None:
         duration = float(audio.duration_sec or 0)
     if duration <= 0 and visual is not None:

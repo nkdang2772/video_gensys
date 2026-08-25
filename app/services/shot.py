@@ -27,6 +27,7 @@ UPDATABLE_FIELDS = {
     "audio_start_sec",
     "audio_end_sec",
     "audio_duration_sec",
+    "planned_duration_sec",
     "head_padding_sec",
     "tail_padding_sec",
     "motion_intent",

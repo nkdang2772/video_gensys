@@ -41,12 +41,14 @@ EXPECTED_COLUMNS = {
         "negative_prompt", "characters_json", "primary_character_id",
         "location_reference_id", "character_batch_key", "audio_start_sec",
         "audio_end_sec", "audio_duration_sec", "head_padding_sec", "tail_padding_sec",
+        "planned_duration_sec",
         "motion_intent", "motion_provider", "hero_flag", "camera_motion_json",
         "motion_fill_policy", "status", "notes",
     },
     "reference": {
         "id", "slug", "name", "reference_type", "scope", "owning_series_id",
         "current_version", "created_at", "updated_at", "is_active",
+        "generation_prompt", "aliases_json",
     },
     "reference_version": {
         "id", "reference_id", "version", "file_path", "descriptor_json", "checksum",

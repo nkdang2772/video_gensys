@@ -55,6 +55,10 @@ def render(session_factory: sessionmaker[Session]) -> None:
     )
     preview_clicked = st.button("Preview script", key="import_preview_button")
     import_clicked = st.button("Import script", type="primary", key="import_script_button")
+    planned_duration = st.number_input(
+        "Initial visual duration per shot (seconds)", min_value=0.1, value=4.0, step=0.5,
+        key="import_planned_duration",
+    )
     if preview_clicked or import_clicked:
         try:
             parsed, source_name, source_bytes = _load_script(uploaded_script, local_script_path)
@@ -67,6 +71,7 @@ def render(session_factory: sessionmaker[Session]) -> None:
                         parsed_shots=parsed,
                         source_name=source_name,
                         source_bytes=source_bytes,
+                        planned_duration_sec=float(planned_duration),
                     )
                 st.success(f"Imported {len(imported)} shots")
         except (DomainError, ParseError, ValueError, OSError) as exc:
@@ -130,6 +135,7 @@ def render(session_factory: sessionmaker[Session]) -> None:
                 "visual": shot.visual_description,
                 "motion": shot.motion_intent,
                 "audio_duration": shot.audio_duration_sec,
+                "planned_duration": shot.planned_duration_sec,
             }
             for shot in shots
         ]
