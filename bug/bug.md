@@ -531,6 +531,16 @@
 - **Cách xử lý:** Đặt `PYTHONIOENCODING=utf-8` cho lệnh diagnostic; phụ đề được Pillow ghi trực tiếp bằng font Unicode nên không qua console encoding.
 - **Xác minh:** Ba frame QA hiển thị đúng “Này”, “Nọ”, “Xích Bích”, “Trường Giang” và các dấu tiếng Việt.
 
+## BUG-052 — Fallback khai báo sprite nhưng không có renderer local thật
+
+- **Trạng thái:** Đã đóng.
+- **Mức độ:** Trung bình, thiếu chức năng motion fallback.
+- **Phát hiện:** Khi chuyển demo Xích Bích từ slideshow tĩnh sang Sprite/Parallax local.
+- **Triệu chứng:** `render_with_fallback()` nhận callback `sprite_renderer`, nhưng project không cung cấp implementation; nếu caller không tự inject thì luôn ghi `sprite_local: unavailable` rồi về Ken Burns.
+- **Nguyên nhân:** Bước 27 mới hoàn thành contract/fallback chain, chưa có engine tách vùng chủ thể và render chuyển động 2.5D.
+- **Cách sửa:** Thêm `app/motion/sprite_parallax.py`: validate ảnh/hộp chủ thể/motion, tạo sprite alpha feather, animate sway + breathing bằng FFmpeg, output H.264/AAC atomic; tích hợp tùy chọn vào renderer slideshow phụ đề.
+- **Regression test:** Clip sprite 1 giây được FFprobe xác nhận H.264 đúng resolution/duration; hộp nằm ngoài ảnh phải raise và không tạo output; targeted 4/4, full 149/149 pass.
+
 ## Quy ước cập nhật
 
 Mỗi lỗi mới cần ghi:

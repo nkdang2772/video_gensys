@@ -9,6 +9,7 @@ from PIL import Image, ImageDraw, ImageFont, UnidentifiedImageError
 from app.media.concat import concat_previews
 from app.media.ffmpeg import FFmpegError, run_ffmpeg
 from app.media.ffprobe import probe_video
+from app.motion.sprite_parallax import render_sprite_parallax
 
 
 class SubtitledSlideshowError(RuntimeError):
@@ -21,6 +22,7 @@ class SubtitleSlide:
     duration_sec: float
     text: str
     speaker: str | None = None
+    subject_box: tuple[int, int, int, int] | None = None
 
 
 @dataclass(frozen=True, slots=True)
@@ -139,17 +141,23 @@ def render_subtitled_slideshow(
                 frame = temp / f"slide_{index:03d}.png"
                 clip = temp / f"slide_{index:03d}.mp4"
                 _frame(slide, frame, (width, height))
-                run_ffmpeg(
-                    [
-                        "-y", "-loop", "1", "-i", str(frame),
-                        "-f", "lavfi", "-i", "anullsrc=r=48000:cl=stereo",
-                        "-t", f"{slide.duration_sec:g}", "-r", f"{fps:g}",
-                        "-c:v", "libx264", "-preset", "veryfast", "-crf", "18",
-                        "-pix_fmt", "yuv420p", "-c:a", "aac", "-ar", "48000", "-ac", "2",
-                        "-shortest", "-movflags", "+faststart", str(clip),
-                    ],
-                    ffmpeg_path=ffmpeg_path,
-                )
+                if slide.subject_box is not None:
+                    render_sprite_parallax(
+                        frame, slide.duration_sec, slide.subject_box,
+                        output_path=clip, fps=fps, ffmpeg_path=ffmpeg_path,
+                    )
+                else:
+                    run_ffmpeg(
+                        [
+                            "-y", "-loop", "1", "-i", str(frame),
+                            "-f", "lavfi", "-i", "anullsrc=r=48000:cl=stereo",
+                            "-t", f"{slide.duration_sec:g}", "-r", f"{fps:g}",
+                            "-c:v", "libx264", "-preset", "veryfast", "-crf", "18",
+                            "-pix_fmt", "yuv420p", "-c:a", "aac", "-ar", "48000", "-ac", "2",
+                            "-shortest", "-movflags", "+faststart", str(clip),
+                        ],
+                        ffmpeg_path=ffmpeg_path,
+                    )
                 clips.append(clip)
             concat_previews(
                 clips, destination, ffmpeg_path=ffmpeg_path,

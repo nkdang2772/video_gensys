@@ -351,12 +351,16 @@
 - Probe thật: 23.521354 giây, 1280×720, 30 FPS, 705 frame, H.264; audio AAC 48 kHz stereo im lặng.
 - Visual QA ba mốc đầu/giữa/cuối đạt: tiếng Việt hiển thị đúng, tự xuống dòng, không che khuôn mặt, không có watermark/chữ rác.
 - Unit/error test renderer 2/2 pass; full regression **147/147 pass**.
+- Bản Sprite/Parallax local: `proxies/xich_bich_intro_sprite_subbed.mp4`, giữ nguyên 7 shot/23.521354 giây nhưng vùng nhân vật được feather và chuyển động nhún-thở/lắc nhẹ độc lập với nền.
+- `app/motion/sprite_parallax.py` cung cấp renderer local thật; `SubtitleSlide.subject_box` bật motion theo từng shot, còn phụ đề được composited trước và giữ ổn định ở dải dưới.
+- Không gọi provider cloud, không dùng credit; đây là chuyển động 2.5D nhẹ, không sinh động tác tay hoặc khẩu hình mới.
+- Targeted Sprite/Subtitle 4/4 pass; visual QA hai frame cùng shot không thấy viền cắt hoặc chữ rác.
 
 ## Kết quả kiểm thử gần nhất
 
 ```text
 python -m app --version: 0.1.0
-pytest: 147 passed
+pytest: 149 passed
 alembic check: No new upgrade operations detected
 PRAGMA journal_mode: wal
 PRAGMA busy_timeout: 5000
@@ -375,6 +379,7 @@ image Asset versioning/cost, gallery UI và batch 80 shot, Ken Burns MP4 thật,
 video metadata, Wan/Veo adapters, motion fill/fallback, motion worker, Motion Queue UI,
 preview shot/scene/full với placeholder/cache, QA HTML/JSON, export 16 cột và rebuild backup.
 Renderer slideshow phụ đề được test với Unicode tiếng Việt, duration/FPS/resolution thật và lỗi ảnh nguồn bị thiếu.
+Renderer Sprite/Parallax local được test với MP4 thật và error case hộp chủ thể nằm ngoài ảnh; full regression 149/149 pass.
 
 ## Git
 
